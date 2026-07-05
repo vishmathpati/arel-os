@@ -12,6 +12,7 @@
  */
 
 import { PageHeader } from "@/app/page-header";
+import { useOnboarding } from "@/app/welcome/use-onboarding";
 import { Button } from "@/shared/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Separator } from "@/shared/components/ui/separator";
@@ -98,6 +99,14 @@ const VERDICTS: Record<string, Verdict> = {
 // ─────────────────────────────────────────────
 
 export function GuidePage() {
+  const navigate = useNavigate();
+  const { relaunch } = useOnboarding();
+
+  const rerunSetup = async () => {
+    await relaunch();
+    navigate("/welcome");
+  };
+
   return (
     <div className="flex h-full flex-col">
       <PageHeader crumbs={[{ label: "Guide" }]} />
@@ -111,6 +120,22 @@ export function GuidePage() {
           <p className="mt-1 text-body text-muted-foreground">
             Unsure where something goes? Use the wizard or read the reference cards below.
           </p>
+
+          <Card className="mt-6 max-w-2xl">
+            <CardContent className="flex items-center justify-between gap-4 p-4">
+              <div>
+                <p className="text-body font-medium">New here?</p>
+                <p className="text-caption text-muted-foreground">
+                  Run the guided setup — it walks you through making your first quest, project,
+                  tasks, and habit.
+                </p>
+              </div>
+              <Button variant="outline" size="sm" onClick={rerunSetup}>
+                <RotateCcw className="size-3.5" />
+                Run guided setup
+              </Button>
+            </CardContent>
+          </Card>
 
           <div className="mt-8 space-y-10">
             {/* Section 1 — Decision wizard */}

@@ -21,8 +21,9 @@ import type { Task } from "@/shared/lib/tasks/tasks";
 import { buildTodayBundle } from "@/shared/lib/today";
 import { cn } from "@/shared/lib/utils";
 import { wikiTarget } from "@/shared/lib/vault/frontmatter";
-import { CheckCircle2, Sunrise } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Sunrise } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 
 const MAX_WINS = 3;
 
@@ -35,6 +36,8 @@ function greeting(now: Date): string {
 }
 
 export function MorningManifestoPage() {
+  const [searchParams] = useSearchParams();
+  const fromOnboarding = searchParams.get("from") === "onboarding";
   const { daily, status, error, start, save, reload } = useDaily();
   const { tasks, loading: tasksLoading, ...taskMutations } = useTasks();
   const { quests } = useQuests();
@@ -117,6 +120,16 @@ export function MorningManifestoPage() {
 
       <div className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-[1280px] px-6 py-6">
+          {fromOnboarding && (
+            <Link
+              to="/welcome"
+              className="mb-4 flex w-fit items-center gap-1.5 rounded-md border border-border bg-muted/40 px-3 py-1.5 text-caption text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <ArrowLeft className="size-3.5" />
+              Back to setup
+            </Link>
+          )}
+
           {/* Hero */}
           <div className="flex flex-wrap items-center gap-4 rounded-lg border border-border bg-card px-6 py-5">
             <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-accent text-foreground">
