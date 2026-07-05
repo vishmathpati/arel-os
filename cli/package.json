@@ -1,6 +1,6 @@
 {
   "name": "arelos",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Installer and service manager for a self-hosted Arel OS on macOS.",
   "type": "module",
   "bin": {

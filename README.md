@@ -48,6 +48,7 @@ arelos list        # see every install on this Mac
 arelos status      # is it running, and where
 arelos update      # pull the latest version
 arelos logs        # tail the service logs
+arelos ports       # change the web/vault ports
 arelos uninstall   # remove it cleanly
 ```
 
