@@ -16,10 +16,32 @@ import { uninstallCommand } from "./uninstall.js";
 import { updateCommand } from "./update.js";
 
 async function main(): Promise<number> {
-  const [, , subcommand, ...rest] = process.argv;
+  const argv = process.argv.slice(2);
+
+  if (argv[0] === "--help" || argv[0] === "-h" || argv[0] === "help") {
+    printHelp();
+    return 0;
+  }
+
+  // No subcommand given, or the first token is a flag (e.g. `rlo --yes ...`)
+  // rather than a subcommand name — both mean "install". Anything else in
+  // the known set consumes its name as the subcommand; everything after it
+  // is passed through as that subcommand's own args.
+  const knownSubcommands = new Set(["install", "status", "update", "uninstall", "logs"]);
+  const firstIsFlag = argv.length === 0 || argv[0].startsWith("-");
+  const firstIsKnown = argv.length > 0 && knownSubcommands.has(argv[0]);
+
+  if (!firstIsFlag && !firstIsKnown) {
+    console.error(`Unknown command: ${argv[0]}\n`);
+    printHelp();
+    return 1;
+  }
+
+  const hasExplicitSubcommand = firstIsKnown;
+  const subcommand = hasExplicitSubcommand ? argv[0] : "install";
+  const rest = hasExplicitSubcommand ? argv.slice(1) : argv;
 
   switch (subcommand) {
-    case undefined:
     case "install":
       return runInstall(rest, parseInstallFlags(rest));
     case "status":
@@ -30,11 +52,6 @@ async function main(): Promise<number> {
       return uninstallCommand();
     case "logs":
       return logsCommand(parseLogsFlags(rest));
-    case "--help":
-    case "-h":
-    case "help":
-      printHelp();
-      return 0;
     default:
       console.error(`Unknown command: ${subcommand}\n`);
       printHelp();
