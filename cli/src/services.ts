@@ -9,8 +9,8 @@
  */
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { bootstrapService, kickstartService } from "./launchd.js";
-import { deriveServiceLabels, launchAgentsDir, plistPath, type ServiceLabels } from "./paths.js";
+import { type BootstrapSequenceEffects, bootstrapServiceSequenced } from "./launchd.js";
+import { type ServiceLabels, deriveServiceLabels, launchAgentsDir, plistPath } from "./paths.js";
 import { renderPlistTemplate } from "./plist.js";
 
 export interface RenderedService {
@@ -66,20 +66,22 @@ export function installServiceFiles(
   return rendered;
 }
 
-/** Bootstrap + kickstart both services (idempotent bootout-then-bootstrap). */
+/**
+ * Bootstrap + kickstart both services via the field-verified race-safe
+ * sequence (see launchd.ts bootstrapServiceSequenced): bootout -> poll until
+ * gone -> bootstrap (retry once on EIO) -> verify loaded -> kickstart. `effects`
+ * is injectable so tests can assert the full sequence, including the poll
+ * loop, without ever calling real launchctl or sleeping in real time.
+ */
 export async function bootstrapAndStart(
   labels: ServiceLabels,
+  effects?: BootstrapSequenceEffects,
 ): Promise<{ web: boolean; vault: boolean; errors: string[] }> {
   const errors: string[] = [];
-  const webRes = await bootstrapService(labels.web);
+  const webRes = await bootstrapServiceSequenced(labels.web, effects);
   if (!webRes.ok) errors.push(`web bootstrap: ${webRes.stderr.trim()}`);
-  const vaultRes = await bootstrapService(labels.vault);
+  const vaultRes = await bootstrapServiceSequenced(labels.vault, effects);
   if (!vaultRes.ok) errors.push(`vault bootstrap: ${vaultRes.stderr.trim()}`);
 
-  const webKick = await kickstartService(labels.web);
-  if (!webKick.ok) errors.push(`web kickstart: ${webKick.stderr.trim()}`);
-  const vaultKick = await kickstartService(labels.vault);
-  if (!vaultKick.ok) errors.push(`vault kickstart: ${vaultKick.stderr.trim()}`);
-
-  return { web: webRes.ok && webKick.ok, vault: vaultRes.ok && vaultKick.ok, errors };
+  return { web: webRes.ok, vault: vaultRes.ok, errors };
 }
