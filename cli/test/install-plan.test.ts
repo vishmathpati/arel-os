@@ -96,14 +96,25 @@ test("resolvePort rejects an invalid port", async () => {
   await assert.rejects(() => resolvePort(80), /invalid/);
 });
 
-test("resolvePort probes the standard default and proposes a free port as the default when occupied (field-test fix: pre-filled prompt default must never be an occupied port)", async () => {
+test("resolvePort proposes a free port when the requested one has an IPv4-only listener (field-test fix: pre-filled prompt default must never be an occupied port)", async () => {
   const server = createServer();
-  await new Promise<void>((resolve) => server.listen(1347, "127.0.0.1", resolve));
+  await new Promise<void>((resolve) => server.listen(58262, "127.0.0.1", resolve));
   try {
-    const res = await resolvePort(1347);
+    const res = await resolvePort(58262);
     assert.equal(res.wasFree, false);
-    assert.ok(res.resolved !== 1347, "the computed default must not be the occupied standard port");
-    assert.ok(res.resolved > 1347);
+    assert.ok(res.resolved > 58262, "the computed default must not be the occupied port");
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test("resolvePort proposes a free port when the requested one has an IPv6-only listener (field-test fix: a [::1]-only server occupied the default while the IPv4 probe called it free)", async () => {
+  const server = createServer();
+  await new Promise<void>((resolve) => server.listen(58263, "::1", resolve));
+  try {
+    const res = await resolvePort(58263);
+    assert.equal(res.wasFree, false, "an IPv6-only listener must mark the requested port as taken");
+    assert.ok(res.resolved > 58263, "the computed default must skip past the [::1]-occupied port");
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }
