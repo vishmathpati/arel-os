@@ -8,7 +8,8 @@ import pc from "picocolors";
 import type { ArelConfig } from "./config.js";
 import { resolveServiceLabels } from "./config.js";
 import { runUpdate } from "./update.js";
-import { waitForHealthy } from "./health.js";
+import { formatHealthTimeoutDiagnostics, waitForHealthy } from "./health.js";
+import { lastLines, logPathFor } from "./logs.js";
 import { bootstrapAndStart, installServiceFiles } from "./services.js";
 import { runStreaming } from "./exec.js";
 import { ensureBun } from "./bun-setup.js";
@@ -92,6 +93,10 @@ async function runRepair(existing: ArelConfig): Promise<number> {
 
   s.start("Health check…");
   const health = await waitForHealthy(existing.webPort, existing.vaultPort);
-  s.stop(health.healthy ? "Healthy." : "Health check timed out — see arelos logs.");
+  s.stop(health.healthy ? "Healthy." : "Health check timed out.");
+  if (!health.healthy) {
+    console.error(pc.red(formatHealthTimeoutDiagnostics(existing.installDir, (p) => lastLines(p, 10), logPathFor)));
+    console.error(pc.dim("\nFull logs: arelos logs"));
+  }
   return health.healthy ? 0 : 1;
 }
