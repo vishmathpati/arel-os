@@ -11,11 +11,17 @@ vi.mock("@/shared/lib/database-data", () => ({
   listRows: vi.fn(),
 }));
 
+vi.mock("@/shared/lib/area-data", () => ({
+  listAreas: vi.fn(),
+}));
+
+import { listAreas } from "@/shared/lib/area-data";
 import { listRows } from "@/shared/lib/database-data";
 import { listPages } from "@/shared/lib/page-data";
 
 const mockListPages = vi.mocked(listPages);
 const mockListRows = vi.mocked(listRows);
+const mockListAreas = vi.mocked(listAreas);
 
 const SAMPLE_PAGES = [
   { slug: "meeting-notes", title: "Meeting Notes" },
@@ -27,10 +33,20 @@ const SAMPLE_ROWS = [
   { slug: "hdfc-debit-card-9505", title: "HDFC Debit 9505" },
 ];
 
+// Areas are now user-defined (no more fixed 6) — these stand in for a
+// template vault's starter areas, each with its resolved identity color.
+const SAMPLE_AREAS = [
+  { slug: "health", name: "Health", color: "var(--color-area-1)", parent: undefined },
+  { slug: "finance", name: "Finance", color: "var(--color-area-6)", parent: undefined },
+  { slug: "learning", name: "Learning", color: "var(--color-area-3)", parent: undefined },
+  { slug: "work", name: "Work", color: "var(--color-area-2)", parent: undefined },
+];
+
 beforeEach(() => {
   vi.clearAllMocks();
   mockListPages.mockResolvedValue(SAMPLE_PAGES as never);
   mockListRows.mockResolvedValue(SAMPLE_ROWS as never);
+  mockListAreas.mockResolvedValue(SAMPLE_AREAS as never);
 });
 
 // ── relationOptions ──────────────────────────────────────────────────────────
@@ -39,7 +55,7 @@ describe("relationOptions", () => {
   it("undefined target → areas + pages combined (legacy)", async () => {
     const opts = await relationOptions(undefined);
     const slugs = opts.map((o) => o.slug);
-    // includes all 6 areas
+    // includes every user-defined area
     expect(slugs).toContain("health");
     expect(slugs).toContain("finance");
     // includes pages
@@ -49,15 +65,17 @@ describe("relationOptions", () => {
 
   it("'areas' target → areas only", async () => {
     const opts = await relationOptions("areas");
-    expect(opts.map((o) => o.slug)).toEqual([
-      "health",
-      "finance",
-      "learning",
-      "spirituality",
-      "youtube",
-      "business",
-    ]);
+    expect(opts.map((o) => o.slug)).toEqual(["health", "finance", "learning", "work"]);
     expect(mockListPages).not.toHaveBeenCalled();
+  });
+
+  it("'areas' target excludes sub-areas (top-level only)", async () => {
+    mockListAreas.mockResolvedValue([
+      ...SAMPLE_AREAS,
+      { slug: "gym", name: "Gym", color: "var(--color-area-1)", parent: "health" },
+    ] as never);
+    const opts = await relationOptions("areas");
+    expect(opts.map((o) => o.slug)).not.toContain("gym");
   });
 
   it("'pages' target → pages only", async () => {
@@ -126,6 +144,15 @@ describe("relationLabel", () => {
   it("works for 'areas' target", async () => {
     const result = await relationLabel("areas", "[[finance]]");
     expect(result.label).toBe("Finance");
+  });
+
+  it("resolves a user-created area not in a fixed list", async () => {
+    mockListAreas.mockResolvedValue([
+      { slug: "cooking", name: "Cooking", color: "var(--color-area-5)", parent: undefined },
+    ] as never);
+    const result = await relationLabel("areas", "[[cooking]]");
+    expect(result.label).toBe("Cooking");
+    expect(result.color).toBe("var(--color-area-5)");
   });
 
   it("falls back to slug for unknown area when target is 'areas'", async () => {
