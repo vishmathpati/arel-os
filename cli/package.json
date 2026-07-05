@@ -17,8 +17,8 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "node --test --experimental-strip-types test/*.test.ts",
-    "test:built": "npm run build && node --test dist-test/*.test.js"
+    "pretest": "tsc -p tsconfig.test.json",
+    "test": "node --test dist-test/test/*.test.js"
   },
   "dependencies": {
     "@clack/prompts": "^0.9.0",
