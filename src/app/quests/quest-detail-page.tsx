@@ -7,6 +7,7 @@
  * projects (D30, handled in the data layer).
  */
 
+import { useAreasContext } from "@/app/areas/areas-provider";
 import { ResourcesSection } from "@/app/databases/resources-section";
 import {
   DetailShell,
@@ -47,7 +48,7 @@ import {
 import { Input } from "@/shared/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/popover";
 import { Skeleton } from "@/shared/components/ui/skeleton";
-import { areaColor, areaLabel, areaSlug } from "@/shared/lib/areas";
+import { areaSlug } from "@/shared/lib/areas";
 import { isProjectFinished } from "@/shared/lib/projects";
 import { QUEST_STATUS_ORDER } from "@/shared/lib/quests";
 import { toDateStr } from "@/shared/lib/tasks/schedule";
@@ -85,6 +86,7 @@ export function QuestDetailPage() {
   const q = useQuest(slug);
   const projectsApi = useProjects();
   const tasksApi = useTasks();
+  const { labelOf, colorOf } = useAreasContext();
 
   const [milestoneDraft, setMilestoneDraft] = useState("");
   const [projectDraft, setProjectDraft] = useState("");
@@ -176,8 +178,8 @@ export function QuestDetailPage() {
     );
   }
 
-  const area = areaLabel(quest.area);
-  const color = areaColor(quest.area);
+  const area = labelOf(quest.area);
+  const color = colorOf(quest.area);
   const deadline = formatDue(quest.deadline);
   const overdue = isQuestOverdue(quest);
   const milestones = quest.milestones ?? [];

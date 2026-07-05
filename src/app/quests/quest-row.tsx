@@ -4,8 +4,8 @@
  * Focus. An overdue deadline (past + quest still open) shows red.
  */
 
+import { useAreasContext } from "@/app/areas/areas-provider";
 import { formatDue } from "@/app/projects/project-row";
-import { areaColor, areaLabel } from "@/shared/lib/areas";
 import type { Quest } from "@/shared/lib/quest-data";
 import { QUEST_STATUS_META, isQuestFinished } from "@/shared/lib/quests";
 import { cn } from "@/shared/lib/utils";
@@ -24,9 +24,10 @@ export function isQuestOverdue(quest: Quest, now: Date = new Date()): boolean {
 
 export function QuestRow({ quest }: { quest: Quest }) {
   const navigate = useNavigate();
+  const { labelOf, colorOf } = useAreasContext();
   const meta = QUEST_STATUS_META[quest.status];
-  const area = areaLabel(quest.area);
-  const color = areaColor(quest.area);
+  const area = labelOf(quest.area);
+  const color = colorOf(quest.area);
   const deadline = formatDue(quest.deadline);
   const overdue = isQuestOverdue(quest);
   const finished = isQuestFinished(quest.status);

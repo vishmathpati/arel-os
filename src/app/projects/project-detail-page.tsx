@@ -9,6 +9,7 @@
  * The kit's InlineNotes is a PLACEHOLDER; Ch7 swaps it for the Plate editor.
  */
 
+import { useAreasContext } from "@/app/areas/areas-provider";
 import { ResourcesSection } from "@/app/databases/resources-section";
 import {
   DetailShell,
@@ -42,7 +43,7 @@ import { Calendar } from "@/shared/components/ui/calendar";
 import { Input } from "@/shared/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/popover";
 import { Skeleton } from "@/shared/components/ui/skeleton";
-import { areaColor, areaLabel, areaSlug } from "@/shared/lib/areas";
+import { areaSlug } from "@/shared/lib/areas";
 import { PROJECT_STATUS_ORDER } from "@/shared/lib/projects";
 import { isQuestFinished } from "@/shared/lib/quests";
 import { toDateStr } from "@/shared/lib/tasks/schedule";
@@ -81,6 +82,7 @@ export function ProjectDetailPage() {
   } = useProject(slug);
   const tasksApi = useTasks();
   const { quests } = useQuests();
+  const { labelOf, colorOf } = useAreasContext();
 
   const [draft, setDraft] = useState("");
   const [expandedPath, setExpandedPath] = useState<string | null>(null);
@@ -155,8 +157,8 @@ export function ProjectDetailPage() {
     );
   }
 
-  const area = areaLabel(project.area);
-  const color = areaColor(project.area);
+  const area = labelOf(project.area);
+  const color = colorOf(project.area);
   const due = formatDue(project.due);
   const projAreaSlug = areaSlug(project.area);
   const currentQuest = project.quest ? wikiTarget(project.quest) : null;

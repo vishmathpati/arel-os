@@ -4,6 +4,7 @@
  * links are set from the entity pages (filtered views), not here.
  */
 
+import { useAreasContext } from "@/app/areas/areas-provider";
 import { Button } from "@/shared/components/ui/button";
 import {
   Dialog,
@@ -24,7 +25,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/components/ui/select";
-import { AREA_OPTIONS } from "@/shared/lib/areas";
 import type { CreateResourceInput } from "@/shared/lib/resource-data";
 import type { ResourceKind } from "@/shared/lib/vault/schemas";
 import { Plus } from "lucide-react";
@@ -39,6 +39,7 @@ export function NewResourceDialog({
   defaultArea?: string;
   onCreate: (input: CreateResourceInput) => Promise<unknown>;
 }) {
+  const { topLevelAreas } = useAreasContext();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [kind, setKind] = useState<ResourceKind>("link");
@@ -138,14 +139,14 @@ export function NewResourceDialog({
                   <SelectValue placeholder="Choose an area" />
                 </SelectTrigger>
                 <SelectContent>
-                  {AREA_OPTIONS.map((a) => (
+                  {topLevelAreas.map((a) => (
                     <SelectItem key={a.slug} value={a.slug}>
                       <span className="flex items-center gap-2">
                         <span
                           className="size-2 rounded-full"
                           style={{ backgroundColor: a.color }}
                         />
-                        {a.label}
+                        {a.name}
                       </span>
                     </SelectItem>
                   ))}

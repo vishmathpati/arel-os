@@ -5,6 +5,7 @@
  * local state; the editor remounts per expanded row, so it re-seeds naturally.
  */
 
+import { useAreasContext } from "@/app/areas/areas-provider";
 import { SchedulePicker } from "@/app/tasks/schedule-picker";
 import {
   AlertDialog,
@@ -20,7 +21,7 @@ import { Checkbox } from "@/shared/components/ui/checkbox";
 import { Input } from "@/shared/components/ui/input";
 import { Switch } from "@/shared/components/ui/switch";
 import { Textarea } from "@/shared/components/ui/textarea";
-import { AREA_OPTIONS, areaSlug, areaWikilink } from "@/shared/lib/areas";
+import { areaSlug, areaWikilink } from "@/shared/lib/areas";
 import { type SchedulePick, scheduleBucket } from "@/shared/lib/tasks/schedule";
 import type { Task } from "@/shared/lib/tasks/tasks";
 import { cn } from "@/shared/lib/utils";
@@ -100,6 +101,7 @@ export function TaskInlineEditor({
   projectOptions,
   questOptions,
 }: TaskInlineEditorProps) {
+  const { topLevelAreas } = useAreasContext();
   const [title, setTitle] = useState(task.title ?? "");
   const [body, setBody] = useState(task.body);
   const [newStep, setNewStep] = useState("");
@@ -197,7 +199,7 @@ export function TaskInlineEditor({
       </Field>
 
       <Field label="Area">
-        {AREA_OPTIONS.map((a) => (
+        {topLevelAreas.map((a) => (
           <button
             key={a.slug}
             type="button"
@@ -211,7 +213,7 @@ export function TaskInlineEditor({
             )}
           >
             <span className="size-2 rounded-full" style={{ backgroundColor: a.color }} />
-            {a.label}
+            {a.name}
           </button>
         ))}
         {currentArea && (

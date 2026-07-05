@@ -5,6 +5,7 @@
  * the detail page.
  */
 
+import { useAreasContext } from "@/app/areas/areas-provider";
 import { Button } from "@/shared/components/ui/button";
 import { Calendar } from "@/shared/components/ui/calendar";
 import {
@@ -27,7 +28,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/components/ui/select";
-import { AREA_OPTIONS } from "@/shared/lib/areas";
 import type { CreateQuestInput } from "@/shared/lib/quest-data";
 import { toDateStr } from "@/shared/lib/tasks/schedule";
 import { cn } from "@/shared/lib/utils";
@@ -48,6 +48,7 @@ export function NewQuestDialog({
   defaultArea?: string;
   onCreate: (input: CreateQuestInput) => Promise<unknown>;
 }) {
+  const { topLevelAreas } = useAreasContext();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [area, setArea] = useState(defaultArea ?? "");
@@ -117,14 +118,14 @@ export function NewQuestDialog({
                   <SelectValue placeholder="Choose an area" />
                 </SelectTrigger>
                 <SelectContent>
-                  {AREA_OPTIONS.map((a) => (
+                  {topLevelAreas.map((a) => (
                     <SelectItem key={a.slug} value={a.slug}>
                       <span className="flex items-center gap-2">
                         <span
                           className="size-2 rounded-full"
                           style={{ backgroundColor: a.color }}
                         />
-                        {a.label}
+                        {a.name}
                       </span>
                     </SelectItem>
                   ))}

@@ -5,11 +5,11 @@
  * New rows are added inline from the Table. Add properties via the "+" header button + Properties panel.
  */
 
+import { useAreasContext } from "@/app/areas/areas-provider";
 import { DatabaseView } from "@/app/databases/database-view";
 import { useDatabase } from "@/app/databases/use-database";
 import { DetailShell, InlineTitle } from "@/app/detail/detail-kit";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/components/ui/alert";
-import { areaColor, areaLabel } from "@/shared/lib/areas";
 import type { DbRow } from "@/shared/lib/db-rows";
 import { Database } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -18,6 +18,7 @@ export function DatabaseDetailPage() {
   const { slug = "" } = useParams();
   const navigate = useNavigate();
   const db = useDatabase(slug);
+  const { labelOf, colorOf } = useAreasContext();
 
   // No skeleton — local reads are instant; a skeleton only flickers on refresh.
   if (db.loading) {
@@ -45,8 +46,8 @@ export function DatabaseDetailPage() {
 
   const { config, rows } = db;
   const columns = config.columns ?? [];
-  const area = config.area ? areaLabel(config.area) : null;
-  const color = config.area ? areaColor(config.area) : null;
+  const area = config.area ? labelOf(config.area) : null;
+  const color = config.area ? colorOf(config.area) : null;
   const openRow = (row: DbRow) => navigate(`/databases/${slug}/${row.slug}`);
 
   return (

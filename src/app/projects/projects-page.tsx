@@ -6,6 +6,7 @@
  * Creation is the New-project dialog (area is required, so a picker is needed).
  */
 
+import { useAreasContext } from "@/app/areas/areas-provider";
 import { PageHeader } from "@/app/page-header";
 import { NewProjectDialog } from "@/app/projects/new-project-dialog";
 import { PROJECT_GRID, ProjectRow } from "@/app/projects/project-row";
@@ -20,7 +21,8 @@ import {
   SelectValue,
 } from "@/shared/components/ui/select";
 import { Skeleton } from "@/shared/components/ui/skeleton";
-import { AREA_OPTIONS, areaSlug } from "@/shared/lib/areas";
+import type { Area } from "@/shared/lib/area-data";
+import { areaSlug } from "@/shared/lib/areas";
 import type { Project } from "@/shared/lib/project-data";
 import { PROJECT_STATUS_META, PROJECT_STATUS_ORDER } from "@/shared/lib/projects";
 import { cn } from "@/shared/lib/utils";
@@ -94,12 +96,12 @@ function statusSections(projects: Project[]): Section[] {
   })).filter((sec) => sec.projects.length > 0);
 }
 
-function areaSections(projects: Project[]): Section[] {
+function areaSections(projects: Project[], topLevelAreas: Area[]): Section[] {
   const sections: Section[] = [];
-  for (const a of AREA_OPTIONS) {
+  for (const a of topLevelAreas) {
     const inArea = projects.filter((p) => areaSlug(p.area) === a.slug).sort(byTitle);
     if (inArea.length) {
-      sections.push({ key: a.slug, label: a.label, dotColor: a.color, projects: inArea });
+      sections.push({ key: a.slug, label: a.name, dotColor: a.color, projects: inArea });
     }
   }
   return sections;
@@ -144,6 +146,7 @@ function kindSections(projects: Project[]): Section[] {
 
 export function ProjectsPage() {
   const { projects, loading, error, reload, create } = useProjects();
+  const { topLevelAreas } = useAreasContext();
   const [lens, setLens] = useState<Lens>("active");
   const [groupBy, setGroupBy] = useState<GroupBy>("none");
 
@@ -161,7 +164,7 @@ export function ProjectsPage() {
   const sections = useMemo(() => {
     switch (groupBy) {
       case "area":
-        return areaSections(filtered);
+        return areaSections(filtered, topLevelAreas);
       case "status":
         return statusSections(filtered);
       case "quest":
@@ -171,7 +174,7 @@ export function ProjectsPage() {
       default:
         return [];
     }
-  }, [filtered, groupBy]);
+  }, [filtered, groupBy, topLevelAreas]);
 
   const isEmpty = groupBy === "none" ? (flat?.length ?? 0) === 0 : sections.length === 0;
 

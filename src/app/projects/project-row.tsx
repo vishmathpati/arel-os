@@ -6,7 +6,7 @@
  * page, the locked Ch5 detail sub-template).
  */
 
-import { areaColor, areaLabel } from "@/shared/lib/areas";
+import { useAreasContext } from "@/app/areas/areas-provider";
 import type { Project } from "@/shared/lib/project-data";
 import { PROJECT_STATUS_META } from "@/shared/lib/projects";
 import { cn } from "@/shared/lib/utils";
@@ -44,8 +44,9 @@ function StatusCell({ status }: { status: Project["status"] }) {
 }
 
 function ContextCell({ project }: { project: Project }) {
-  const area = areaLabel(project.area);
-  const color = areaColor(project.area);
+  const { labelOf, colorOf } = useAreasContext();
+  const area = labelOf(project.area);
+  const color = colorOf(project.area);
   return (
     <div className="flex min-w-0 items-center gap-2.5 text-caption text-muted-foreground">
       {area ? (

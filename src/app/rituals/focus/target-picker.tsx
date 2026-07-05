@@ -4,6 +4,7 @@
  * mirroring the Ch11 Plan-tomorrow picker so the rituals feel like one system.
  */
 
+import { useAreasContext } from "@/app/areas/areas-provider";
 import { TypeIcon } from "@/shared/components/type-icon";
 import {
   Command,
@@ -14,7 +15,6 @@ import {
   CommandList,
 } from "@/shared/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/popover";
-import { areaOption } from "@/shared/lib/areas";
 import type { FocusTarget, FocusTargetKind } from "@/shared/lib/focus/contract";
 import type { PrimitiveTypeKey } from "@/shared/lib/primitives";
 import { cn } from "@/shared/lib/utils";
@@ -42,12 +42,17 @@ function TargetIcon({
   slug,
   className,
 }: { kind: FocusTargetKind; slug: string; className?: string }) {
+  const { byWikilink } = useAreasContext();
   if (kind === "area") {
-    const opt = areaOption(slug);
-    if (!opt) return null;
-    const Icon = opt.icon;
+    const area = byWikilink(slug);
+    if (!area) return null;
+    const Icon = area.icon;
     return (
-      <Icon className={cn("size-4 shrink-0", className)} style={{ color: opt.color }} aria-hidden />
+      <Icon
+        className={cn("size-4 shrink-0", className)}
+        style={{ color: area.color }}
+        aria-hidden
+      />
     );
   }
   return <TypeIcon type={kind as PrimitiveTypeKey} className={className} />;

@@ -6,10 +6,10 @@
  * its real home and clears it from the inbox. Discard soft-deletes it.
  */
 
+import { useAreasContext } from "@/app/areas/areas-provider";
 import type { TaskLinkOption, TaskProjectOption } from "@/app/tasks/task-inline-editor";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
-import { AREA_OPTIONS } from "@/shared/lib/areas";
 import type { FileDestination, InboxItem } from "@/shared/lib/inbox-data";
 import { cn } from "@/shared/lib/utils";
 import type { InboxFrontmatter, InboxKind, ResourceKind } from "@/shared/lib/vault/schemas";
@@ -60,6 +60,7 @@ export function InboxTriageEditor({
   projectOptions,
   questOptions,
 }: InboxTriageEditorProps) {
+  const { topLevelAreas } = useAreasContext();
   const [title, setTitle] = useState(item.title ?? "");
   const [area, setArea] = useState<string | null>(null);
   const [project, setProject] = useState<string | null>(null);
@@ -142,7 +143,7 @@ export function InboxTriageEditor({
       )}
 
       <Field label="Area">
-        {AREA_OPTIONS.map((a) => (
+        {topLevelAreas.map((a) => (
           <button
             key={a.slug}
             type="button"
@@ -156,7 +157,7 @@ export function InboxTriageEditor({
             )}
           >
             <span className="size-2 rounded-full" style={{ backgroundColor: a.color }} />
-            {a.label}
+            {a.name}
           </button>
         ))}
       </Field>

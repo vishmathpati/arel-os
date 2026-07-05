@@ -5,6 +5,7 @@
  * Follows the DetailShell + same header/breadcrumb pattern as the quest detail.
  */
 
+import { useAreasContext } from "@/app/areas/areas-provider";
 import { DetailShell, Field, InlineTitle } from "@/app/detail/detail-kit";
 import { Heatmap } from "@/app/habits/heatmap";
 import { useHabit } from "@/app/habits/use-habit";
@@ -19,7 +20,7 @@ import {
   SelectValue,
 } from "@/shared/components/ui/select";
 import { Skeleton } from "@/shared/components/ui/skeleton";
-import { AREA_OPTIONS, areaLabel, areaSlug } from "@/shared/lib/areas";
+import { areaSlug } from "@/shared/lib/areas";
 import {
   buildHeatmapGrid,
   completionPercent,
@@ -107,6 +108,7 @@ export function HabitDetailPage() {
   const { slug = "" } = useParams();
   const navigate = useNavigate();
   const { habit, loading, notFound, error, reload, patch, toggleCompletion } = useHabit(slug);
+  const { topLevelAreas, labelOf } = useAreasContext();
   const [backfillDate, setBackfillDate] = useState("");
   const [backfillValue, setBackfillValue] = useState("");
   const [backfillSaving, setBackfillSaving] = useState(false);
@@ -146,10 +148,10 @@ export function HabitDetailPage() {
   const pct30 = completionPercent(habit, 30);
   const isQuantity = habit.habit_display === "bar";
   const doneToday = isCompletedOn(habit, today);
-  const habitAreaLabel = habit.area ? areaLabel(habit.area) : null;
+  const habitAreaLabel = habit.area ? labelOf(habit.area) : null;
   const habitAreaSlug = habit.area ? areaSlug(habit.area) : null;
   const habitAreaColor = habitAreaSlug
-    ? AREA_OPTIONS.find((a) => a.slug === habitAreaSlug)?.color
+    ? topLevelAreas.find((a) => a.slug === habitAreaSlug)?.color
     : null;
 
   const handleDayClick = async (date: string) => {
@@ -377,11 +379,11 @@ export function HabitDetailPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="">No area</SelectItem>
-                {AREA_OPTIONS.map((a) => (
+                {topLevelAreas.map((a) => (
                   <SelectItem key={a.slug} value={a.slug}>
                     <span className="flex items-center gap-2">
                       <span className="size-2 rounded-full" style={{ backgroundColor: a.color }} />
-                      {a.label}
+                      {a.name}
                     </span>
                   </SelectItem>
                 ))}

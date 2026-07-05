@@ -6,6 +6,7 @@
  * session is logged to today's daily note.
  */
 
+import { useAreasContext } from "@/app/areas/areas-provider";
 import { PageHeader } from "@/app/page-header";
 import { useProjects } from "@/app/projects/use-projects";
 import { useQuests } from "@/app/quests/use-quests";
@@ -14,7 +15,7 @@ import { FocusComplete } from "@/app/rituals/focus/focus-complete";
 import { FocusSetup } from "@/app/rituals/focus/focus-setup";
 import type { TargetOption } from "@/app/rituals/focus/target-picker";
 import { useTasks } from "@/app/tasks/use-tasks";
-import { AREA_OPTIONS, areaSlug } from "@/shared/lib/areas";
+import { areaSlug } from "@/shared/lib/areas";
 import { useFocusSession } from "@/shared/lib/focus/use-focus-session";
 import { isProjectFinished } from "@/shared/lib/projects";
 import { isQuestFinished } from "@/shared/lib/quests";
@@ -26,6 +27,7 @@ export function FocusSessionPage() {
   const { tasks } = useTasks();
   const { projects } = useProjects();
   const { quests } = useQuests();
+  const { topLevelAreas } = useAreasContext();
 
   const candidates = useMemo<TargetOption[]>(() => {
     const t: TargetOption[] = tasks
@@ -55,15 +57,15 @@ export function FocusSessionPage() {
         title: x.title ?? x.slug,
         area: areaSlug(x.area) ?? undefined,
       }));
-    const a: TargetOption[] = AREA_OPTIONS.map((x) => ({
+    const a: TargetOption[] = topLevelAreas.map((x) => ({
       key: `area:${x.slug}`,
       kind: "area",
       slug: x.slug,
-      title: x.label,
+      title: x.name,
       area: x.slug,
     }));
     return [...t, ...p, ...q, ...a];
-  }, [tasks, projects, quests]);
+  }, [tasks, projects, quests, topLevelAreas]);
 
   const { session } = focus;
   const running = session && session.phase !== "done";

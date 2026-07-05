@@ -7,6 +7,7 @@
  * left untouched; wins write to the daily note's `must_do`.
  */
 
+import { useAreasContext } from "@/app/areas/areas-provider";
 import type { TaskLinkOption, TaskProjectOption } from "@/app/tasks/task-inline-editor";
 import { TASK_GRID, TaskRow } from "@/app/tasks/task-row";
 import { Badge } from "@/shared/components/ui/badge";
@@ -21,7 +22,6 @@ import {
   CommandList,
 } from "@/shared/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/popover";
-import { areaColor } from "@/shared/lib/areas";
 import type { Quest } from "@/shared/lib/quest-data";
 import { QUEST_STATUS_META } from "@/shared/lib/quests";
 import { formatSchedule } from "@/shared/lib/tasks/schedule";
@@ -246,6 +246,7 @@ function WinsCard({
 }
 
 function FocusQuestsCard({ quests }: { quests: Quest[] }) {
+  const { colorOf } = useAreasContext();
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -262,7 +263,7 @@ function FocusQuestsCard({ quests }: { quests: Quest[] }) {
         ) : (
           quests.map((q) => {
             const meta = QUEST_STATUS_META[q.status];
-            const color = areaColor(q.area);
+            const color = colorOf(q.area);
             return (
               <Link
                 key={q.slug}

@@ -7,6 +7,7 @@
  * updated are read-only auto columns sourced from frontmatter.
  */
 
+import { useAreasContext } from "@/app/areas/areas-provider";
 import { OptionCell } from "@/app/databases/option-cell";
 import { Badge } from "@/shared/components/ui/badge";
 import { Calendar } from "@/shared/components/ui/calendar";
@@ -29,7 +30,6 @@ import {
 } from "@/shared/components/ui/select";
 import { Switch } from "@/shared/components/ui/switch";
 import { useUploadFile } from "@/shared/hooks/use-upload-file";
-import { AREA_OPTIONS } from "@/shared/lib/areas";
 import { DATE_FORMATS, formatDateValue, formatNumberValue } from "@/shared/lib/db-format";
 import { toDateStr } from "@/shared/lib/tasks/schedule";
 import { cn } from "@/shared/lib/utils";
@@ -324,6 +324,7 @@ function RelationCell({
   value: unknown;
   onChange: (next: unknown) => void;
 }) {
+  const { topLevelAreas, byWikilink } = useAreasContext();
   const [open, setOpen] = useState(false);
   const [options, setOptions] = useState<RelationOption[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -343,7 +344,7 @@ function RelationCell({
   }, [loaded, target]);
 
   // For display before the picker is opened, areas are always recognizable.
-  const areaBySlug = (slug: string) => AREA_OPTIONS.find((a) => a.slug === slug);
+  const areaBySlug = (slug: string) => byWikilink(slug);
   const optBySlug = (slug: string) => options.find((o) => o.slug === slug);
 
   const isSelected = (slug: string) => links.includes(toWikilink(slug));
@@ -385,7 +386,7 @@ function RelationCell({
               return area && (!target || target === "areas") ? (
                 <span key={slug} className="flex items-center gap-1.5 text-body">
                   <span className="size-2 rounded-full" style={{ backgroundColor: area.color }} />
-                  {area.label}
+                  {area.name}
                 </span>
               ) : (
                 <Badge key={slug} variant="secondary" className="font-normal">
@@ -420,7 +421,7 @@ function RelationCell({
               <>
                 <CommandGroup heading="Areas">
                   {options
-                    .filter((o) => AREA_OPTIONS.some((a) => a.slug === o.slug))
+                    .filter((o) => topLevelAreas.some((a) => a.slug === o.slug))
                     .map((o) => (
                       <CommandItem
                         key={o.slug}
@@ -436,10 +437,11 @@ function RelationCell({
                       </CommandItem>
                     ))}
                 </CommandGroup>
-                {options.filter((o) => !AREA_OPTIONS.some((a) => a.slug === o.slug)).length > 0 && (
+                {options.filter((o) => !topLevelAreas.some((a) => a.slug === o.slug)).length >
+                  0 && (
                   <CommandGroup heading="Pages">
                     {options
-                      .filter((o) => !AREA_OPTIONS.some((a) => a.slug === o.slug))
+                      .filter((o) => !topLevelAreas.some((a) => a.slug === o.slug))
                       .map((o) => (
                         <CommandItem
                           key={o.slug}

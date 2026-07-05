@@ -5,6 +5,7 @@
  * Rows navigate to the detail page. Creation is the New-quest dialog.
  */
 
+import { useAreasContext } from "@/app/areas/areas-provider";
 import { PageHeader } from "@/app/page-header";
 import { NewQuestDialog } from "@/app/quests/new-quest-dialog";
 import { QUEST_GRID, QuestRow } from "@/app/quests/quest-row";
@@ -19,7 +20,8 @@ import {
   SelectValue,
 } from "@/shared/components/ui/select";
 import { Skeleton } from "@/shared/components/ui/skeleton";
-import { AREA_OPTIONS, areaSlug } from "@/shared/lib/areas";
+import type { Area } from "@/shared/lib/area-data";
+import { areaSlug } from "@/shared/lib/areas";
 import type { Quest } from "@/shared/lib/quest-data";
 import { QUEST_STATUS_META, QUEST_STATUS_ORDER } from "@/shared/lib/quests";
 import { cn } from "@/shared/lib/utils";
@@ -87,12 +89,12 @@ function statusSections(quests: Quest[]): Section[] {
   })).filter((sec) => sec.quests.length > 0);
 }
 
-function areaSections(quests: Quest[]): Section[] {
+function areaSections(quests: Quest[], topLevelAreas: Area[]): Section[] {
   const sections: Section[] = [];
-  for (const a of AREA_OPTIONS) {
+  for (const a of topLevelAreas) {
     const inArea = quests.filter((q) => areaSlug(q.area) === a.slug).sort(byDeadline);
     if (inArea.length) {
-      sections.push({ key: a.slug, label: a.label, dotColor: a.color, quests: inArea });
+      sections.push({ key: a.slug, label: a.name, dotColor: a.color, quests: inArea });
     }
   }
   return sections;
@@ -100,6 +102,7 @@ function areaSections(quests: Quest[]): Section[] {
 
 export function QuestsPage() {
   const { quests, loading, error, reload, create } = useQuests();
+  const { topLevelAreas } = useAreasContext();
   const [lens, setLens] = useState<Lens>("active");
   const [groupBy, setGroupBy] = useState<GroupBy>("none");
 
@@ -115,10 +118,10 @@ export function QuestsPage() {
     [filtered, groupBy],
   );
   const sections = useMemo(() => {
-    if (groupBy === "area") return areaSections(filtered);
+    if (groupBy === "area") return areaSections(filtered, topLevelAreas);
     if (groupBy === "status") return statusSections(filtered);
     return [];
-  }, [filtered, groupBy]);
+  }, [filtered, groupBy, topLevelAreas]);
 
   const isEmpty = groupBy === "none" ? (flat?.length ?? 0) === 0 : sections.length === 0;
 

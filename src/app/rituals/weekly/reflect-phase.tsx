@@ -5,10 +5,11 @@
  * milestone toggles write the quest directly. Pure presentation — mutations in.
  */
 
+import { useAreasContext } from "@/app/areas/areas-provider";
 import { Block, Section } from "@/app/rituals/check-in-kit";
 import { Checkbox } from "@/shared/components/ui/checkbox";
 import { Textarea } from "@/shared/components/ui/textarea";
-import { areaColor, areaSlug } from "@/shared/lib/areas";
+import { areaSlug } from "@/shared/lib/areas";
 import type { Quest } from "@/shared/lib/quest-data";
 import { cn } from "@/shared/lib/utils";
 import { Lightbulb, Sparkles, Target } from "lucide-react";
@@ -33,6 +34,7 @@ export function ReflectPhase({
   onToggleMilestone,
   onChange,
 }: ReflectPhaseProps) {
+  const { colorOf } = useAreasContext();
   return (
     <div className="space-y-6">
       <Section title="This week's focus quests">
@@ -52,7 +54,7 @@ export function ReflectPhase({
                     <span className="flex items-center gap-1.5">
                       <span
                         className="size-2 rounded-full"
-                        style={{ backgroundColor: areaColor(slug) ?? "#5F5F5F" }}
+                        style={{ backgroundColor: colorOf(slug) ?? "#5F5F5F" }}
                       />
                       {slug}
                     </span>

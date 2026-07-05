@@ -5,6 +5,7 @@
  * Select + Input(type=time); optional area + optional Quest/Project/Task link.
  */
 
+import { useAreasContext } from "@/app/areas/areas-provider";
 import { TypeIcon } from "@/shared/components/type-icon";
 import { Button } from "@/shared/components/ui/button";
 import {
@@ -34,7 +35,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/components/ui/select";
-import { AREA_OPTIONS } from "@/shared/lib/areas";
 import {
   CATEGORY_LABEL,
   CATEGORY_ORDER,
@@ -94,6 +94,7 @@ export function BlockDialog({
   onSubmit,
   onDelete,
 }: BlockDialogProps) {
+  const { topLevelAreas } = useAreasContext();
   const editing = !!block;
   const [label, setLabel] = useState("");
   const [category, setCategory] = useState<IdealWeekCategory>("deep-work");
@@ -254,14 +255,14 @@ export function BlockDialog({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={NONE}>None</SelectItem>
-                  {AREA_OPTIONS.map((a) => (
+                  {topLevelAreas.map((a) => (
                     <SelectItem key={a.slug} value={a.slug}>
                       <span className="flex items-center gap-2">
                         <span
                           className="size-2 rounded-full"
                           style={{ backgroundColor: a.color }}
                         />
-                        {a.label}
+                        {a.name}
                       </span>
                     </SelectItem>
                   ))}

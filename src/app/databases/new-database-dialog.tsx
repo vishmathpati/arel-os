@@ -4,6 +4,7 @@
  * empty and are added inline via the table's "+" header button.
  */
 
+import { useAreasContext } from "@/app/areas/areas-provider";
 import { Button } from "@/shared/components/ui/button";
 import {
   Dialog,
@@ -24,7 +25,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/components/ui/select";
-import { AREA_OPTIONS } from "@/shared/lib/areas";
 import type { CreateDatabaseInput, DatabaseConfig } from "@/shared/lib/database-data";
 import { Database, Plus } from "lucide-react";
 import { useState } from "react";
@@ -38,6 +38,7 @@ export function NewDatabaseDialog({
   defaultArea?: string;
   onCreate: (input: CreateDatabaseInput) => Promise<DatabaseConfig>;
 }) {
+  const { topLevelAreas } = useAreasContext();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -121,14 +122,14 @@ export function NewDatabaseDialog({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={STANDALONE}>Standalone (no area)</SelectItem>
-                  {AREA_OPTIONS.map((a) => (
+                  {topLevelAreas.map((a) => (
                     <SelectItem key={a.slug} value={a.slug}>
                       <span className="flex items-center gap-2">
                         <span
                           className="size-2 rounded-full"
                           style={{ backgroundColor: a.color }}
                         />
-                        {a.label}
+                        {a.name}
                       </span>
                     </SelectItem>
                   ))}

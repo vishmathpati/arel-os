@@ -6,6 +6,7 @@
  * done), and an inbox catch (count + link). Pure presentation — mutations in.
  */
 
+import { useAreasContext } from "@/app/areas/areas-provider";
 import { Section } from "@/app/rituals/check-in-kit";
 import { TypeIcon } from "@/shared/components/type-icon";
 import { Badge } from "@/shared/components/ui/badge";
@@ -20,7 +21,7 @@ import {
   CommandList,
 } from "@/shared/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/popover";
-import { areaColor, areaSlug } from "@/shared/lib/areas";
+import { areaSlug } from "@/shared/lib/areas";
 import type { Project } from "@/shared/lib/project-data";
 import type { Quest } from "@/shared/lib/quest-data";
 import type { SchedulePick } from "@/shared/lib/tasks/schedule";
@@ -57,13 +58,15 @@ const fromToday = (days: number): string => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
-const AreaDot = ({ area }: { area: string | null }) =>
-  area ? (
+const AreaDot = ({ area }: { area: string | null }) => {
+  const { colorOf } = useAreasContext();
+  return area ? (
     <span
       className="size-2 shrink-0 rounded-full"
-      style={{ backgroundColor: areaColor(area) ?? "#5F5F5F" }}
+      style={{ backgroundColor: colorOf(area) ?? "#5F5F5F" }}
     />
   ) : null;
+};
 
 export function MaintainPhase(props: MaintainPhaseProps) {
   const {

@@ -6,6 +6,7 @@
  * the note's recurring[]). Pure presentation — mutations in.
  */
 
+import { useAreasContext } from "@/app/areas/areas-provider";
 import { TypeIcon } from "@/shared/components/type-icon";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
@@ -19,7 +20,7 @@ import {
 } from "@/shared/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/components/ui/tooltip";
-import { areaColor, areaSlug } from "@/shared/lib/areas";
+import { areaSlug } from "@/shared/lib/areas";
 import type { Quest } from "@/shared/lib/quest-data";
 import type { Task } from "@/shared/lib/tasks/tasks";
 import { cn } from "@/shared/lib/utils";
@@ -75,6 +76,7 @@ export function PlanPhase({
   onUnassign,
   onToggleRecurring,
 }: PlanPhaseProps) {
+  const { colorOf } = useAreasContext();
   const focusCount = focusableQuests.filter((q) => focusSlugs.has(q.slug)).length;
 
   return (
@@ -117,7 +119,7 @@ export function PlanPhase({
                   {slug && (
                     <span
                       className="size-2 shrink-0 rounded-full"
-                      style={{ backgroundColor: areaColor(slug) ?? "#5F5F5F" }}
+                      style={{ backgroundColor: colorOf(slug) ?? "#5F5F5F" }}
                     />
                   )}
                 </div>

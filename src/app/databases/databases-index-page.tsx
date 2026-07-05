@@ -5,13 +5,15 @@
  * opens its detail page. "New database" creates one with no area required.
  */
 
+import { useAreasContext } from "@/app/areas/areas-provider";
 import { NewDatabaseDialog } from "@/app/databases/new-database-dialog";
 import { useAllDatabases } from "@/app/databases/use-all-databases";
 import { PageHeader } from "@/app/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/components/ui/alert";
 import { Button } from "@/shared/components/ui/button";
 import { Skeleton } from "@/shared/components/ui/skeleton";
-import { AREA_OPTIONS, areaSlug } from "@/shared/lib/areas";
+import type { Area } from "@/shared/lib/area-data";
+import { areaSlug } from "@/shared/lib/areas";
 import type { DatabaseConfig } from "@/shared/lib/database-data";
 import { Database, Library as LibraryIcon } from "lucide-react";
 import { useMemo } from "react";
@@ -24,12 +26,12 @@ interface Group {
   databases: DatabaseConfig[];
 }
 
-function groupByArea(databases: DatabaseConfig[]): Group[] {
+function groupByArea(databases: DatabaseConfig[], topLevelAreas: Area[]): Group[] {
   const groups: Group[] = [];
-  for (const a of AREA_OPTIONS) {
+  for (const a of topLevelAreas) {
     const inArea = databases.filter((d) => areaSlug(d.area) === a.slug);
     if (inArea.length)
-      groups.push({ key: a.slug, label: a.label, color: a.color, databases: inArea });
+      groups.push({ key: a.slug, label: a.name, color: a.color, databases: inArea });
   }
   const standalone = databases.filter((d) => !d.area || !areaSlug(d.area));
   if (standalone.length)
@@ -39,8 +41,9 @@ function groupByArea(databases: DatabaseConfig[]): Group[] {
 
 export function DatabasesIndexPage() {
   const { databases, loading, error, reload, create } = useAllDatabases();
+  const { topLevelAreas } = useAreasContext();
   const navigate = useNavigate();
-  const groups = useMemo(() => groupByArea(databases), [databases]);
+  const groups = useMemo(() => groupByArea(databases, topLevelAreas), [databases, topLevelAreas]);
 
   return (
     <div className="flex h-full flex-col">

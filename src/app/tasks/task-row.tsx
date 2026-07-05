@@ -7,13 +7,13 @@
  * plus any Quest/Project link. Evening tasks get a moon in the When column.
  */
 
+import { useAreasContext } from "@/app/areas/areas-provider";
 import {
   TaskInlineEditor,
   type TaskLinkOption,
   type TaskProjectOption,
 } from "@/app/tasks/task-inline-editor";
 import { Checkbox } from "@/shared/components/ui/checkbox";
-import { areaColor, areaLabel } from "@/shared/lib/areas";
 import type { SchedulePick } from "@/shared/lib/tasks/schedule";
 import { formatSchedule, isOverdue, scheduleBucket } from "@/shared/lib/tasks/schedule";
 import type { Task } from "@/shared/lib/tasks/tasks";
@@ -78,8 +78,9 @@ function StatusCell({ task }: { task: Task }) {
 }
 
 function ContextCell({ task }: { task: Task }) {
-  const area = areaLabel(task.area);
-  const color = areaColor(task.area);
+  const { labelOf, colorOf } = useAreasContext();
+  const area = labelOf(task.area);
+  const color = colorOf(task.area);
   return (
     <div className="flex min-w-0 items-center gap-2.5 text-caption text-muted-foreground">
       {area ? (

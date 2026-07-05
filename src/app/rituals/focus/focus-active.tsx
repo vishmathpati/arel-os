@@ -5,12 +5,12 @@
  * useful sometimes — flip them on without abandoning the whole profile).
  */
 
+import { useAreasContext } from "@/app/areas/areas-provider";
 import { Section } from "@/app/rituals/check-in-kit";
 import { Button } from "@/shared/components/ui/button";
 import { Progress } from "@/shared/components/ui/progress";
 import { Switch } from "@/shared/components/ui/switch";
 import { Textarea } from "@/shared/components/ui/textarea";
-import { areaColor } from "@/shared/lib/areas";
 import { formatClock, getFocusProfile } from "@/shared/lib/focus/contract";
 import {
   type ActiveSession,
@@ -45,6 +45,7 @@ interface FocusActiveProps {
 
 export function FocusActive(props: FocusActiveProps) {
   const { session, remaining, connection, blocked } = props;
+  const { colorOf } = useAreasContext();
   const phase = session.phase as Exclude<SessionPhase, "done">;
   const meta = PHASE_META[phase];
   const total = phaseDurationSec(session);
@@ -58,7 +59,7 @@ export function FocusActive(props: FocusActiveProps) {
         <div className="flex items-center gap-2">
           <span
             className="size-2.5 rounded-full"
-            style={{ backgroundColor: areaColor(session.target.slug) ?? "var(--color-primary)" }}
+            style={{ backgroundColor: colorOf(session.target.slug) ?? "var(--color-primary)" }}
           />
           <span className="text-subheading font-medium">{session.target.title}</span>
         </div>

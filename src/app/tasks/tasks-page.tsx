@@ -7,6 +7,7 @@
  * expands it inline (TaskInlineEditor) — there is no side panel.
  */
 
+import { useAreasContext } from "@/app/areas/areas-provider";
 import { PageHeader } from "@/app/page-header";
 import { useProjects } from "@/app/projects/use-projects";
 import { useQuests } from "@/app/quests/use-quests";
@@ -24,7 +25,8 @@ import {
   SelectValue,
 } from "@/shared/components/ui/select";
 import { Skeleton } from "@/shared/components/ui/skeleton";
-import { AREA_OPTIONS, areaSlug } from "@/shared/lib/areas";
+import type { Area } from "@/shared/lib/area-data";
+import { areaSlug } from "@/shared/lib/areas";
 import {
   type ScheduleBucket,
   resolvePick,
@@ -124,18 +126,18 @@ function statusSections(tasks: Task[], now: Date): Section[] {
   }));
 }
 
-function areaSections(tasks: Task[], now: Date): Section[] {
+function areaSections(tasks: Task[], now: Date, topLevelAreas: Area[]): Section[] {
   const byArea = new Map<string, Task[]>();
   for (const task of tasks) {
     const key = areaSlug(task.area) ?? "unhomed";
     (byArea.get(key) ?? byArea.set(key, []).get(key))?.push(task);
   }
   const sections: Section[] = [];
-  for (const a of AREA_OPTIONS) {
+  for (const a of topLevelAreas) {
     if (byArea.has(a.slug)) {
       sections.push({
         key: a.slug,
-        label: a.label,
+        label: a.name,
         dotColor: a.color,
         tasks: sortTasks(byArea.get(a.slug) ?? [], now),
       });
@@ -220,6 +222,7 @@ export function TasksPage() {
   } = useTasks();
   const { projects } = useProjects();
   const { quests } = useQuests();
+  const { topLevelAreas } = useAreasContext();
   const projectOptions = useMemo(
     () =>
       projects.map((p) => ({
@@ -257,7 +260,7 @@ export function TasksPage() {
       case "status":
         return statusSections(filtered, now);
       case "area":
-        return areaSections(filtered, now);
+        return areaSections(filtered, now, topLevelAreas);
       case "project":
         return linkSections(filtered, now, "project", FolderKanban, "No project");
       case "quest":
@@ -265,7 +268,7 @@ export function TasksPage() {
       default:
         return [];
     }
-  }, [filtered, groupBy, now]);
+  }, [filtered, groupBy, now, topLevelAreas]);
 
   const isEmpty = groupBy === "none" ? (flatTasks?.length ?? 0) === 0 : sections.length === 0;
 

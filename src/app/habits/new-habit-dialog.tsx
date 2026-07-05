@@ -6,6 +6,7 @@
  * Optional: display type, target + unit, area.
  */
 
+import { useAreasContext } from "@/app/areas/areas-provider";
 import { Button } from "@/shared/components/ui/button";
 import {
   Dialog,
@@ -26,7 +27,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/components/ui/select";
-import { AREA_OPTIONS } from "@/shared/lib/areas";
 import type { CreateHabitInput } from "@/shared/lib/habits/habits";
 import { Plus } from "lucide-react";
 import { useState } from "react";
@@ -36,6 +36,7 @@ export function NewHabitDialog({
 }: {
   onCreate: (input: CreateHabitInput) => Promise<unknown>;
 }) {
+  const { topLevelAreas } = useAreasContext();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [area, setArea] = useState("");
@@ -203,14 +204,14 @@ export function NewHabitDialog({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">No area</SelectItem>
-                  {AREA_OPTIONS.map((a) => (
+                  {topLevelAreas.map((a) => (
                     <SelectItem key={a.slug} value={a.slug}>
                       <span className="flex items-center gap-2">
                         <span
                           className="size-2 rounded-full"
                           style={{ backgroundColor: a.color }}
                         />
-                        {a.label}
+                        {a.name}
                       </span>
                     </SelectItem>
                   ))}
