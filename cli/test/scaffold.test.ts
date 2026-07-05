@@ -10,11 +10,11 @@ import { ensureEnvFile, ensureLogsDir, isDirEmpty, scaffoldVault, TemplateVaultM
 const REPO_ROOT = join(import.meta.dirname, "..", "..", "..");
 
 test("isDirEmpty treats a nonexistent dir as empty", () => {
-  assert.equal(isDirEmpty(join(tmpdir(), "rlo-does-not-exist-abc")), true);
+  assert.equal(isDirEmpty(join(tmpdir(), "arelos-does-not-exist-abc")), true);
 });
 
 test("scaffoldVault throws TemplateVaultMissingError when templates/vault is absent from installDir", () => {
-  const dir = mkdtempSync(join(tmpdir(), "rlo-scaffold-test-"));
+  const dir = mkdtempSync(join(tmpdir(), "arelos-scaffold-test-"));
   try {
     assert.throws(() => scaffoldVault(dir, join(dir, "vault")), TemplateVaultMissingError);
   } finally {
@@ -23,7 +23,7 @@ test("scaffoldVault throws TemplateVaultMissingError when templates/vault is abs
 });
 
 test("scaffoldVault copies the real repo's templates/vault into an empty destination", () => {
-  const dir = mkdtempSync(join(tmpdir(), "rlo-scaffold-test-"));
+  const dir = mkdtempSync(join(tmpdir(), "arelos-scaffold-test-"));
   const vaultDest = join(dir, "vault");
   try {
     // Simulate an installDir by symlinking/copying just the templates dir
@@ -56,7 +56,7 @@ test("scaffoldVault copies the real repo's templates/vault into an empty destina
 });
 
 test("scaffoldVault does not overwrite a non-empty destination", () => {
-  const dir = mkdtempSync(join(tmpdir(), "rlo-scaffold-test-"));
+  const dir = mkdtempSync(join(tmpdir(), "arelos-scaffold-test-"));
   const vaultDest = join(dir, "vault");
   mkdirSync(vaultDest);
   writeFileSync(join(vaultDest, "my-existing-note.md"), "do not touch");
@@ -71,7 +71,7 @@ test("scaffoldVault does not overwrite a non-empty destination", () => {
 });
 
 test("ensureLogsDir creates logs/service under installDir", () => {
-  const dir = mkdtempSync(join(tmpdir(), "rlo-scaffold-test-"));
+  const dir = mkdtempSync(join(tmpdir(), "arelos-scaffold-test-"));
   try {
     const logsDir = ensureLogsDir(dir);
     assert.equal(logsDir, join(dir, "logs", "service"));
@@ -82,7 +82,7 @@ test("ensureLogsDir creates logs/service under installDir", () => {
 });
 
 test("ensureEnvFile copies .env.example to .env only when .env is absent", () => {
-  const dir = mkdtempSync(join(tmpdir(), "rlo-scaffold-test-"));
+  const dir = mkdtempSync(join(tmpdir(), "arelos-scaffold-test-"));
   try {
     writeFileSync(join(dir, ".env.example"), "AI_GATEWAY_API_KEY=\n");
     const first = ensureEnvFile(dir);

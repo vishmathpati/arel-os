@@ -1,7 +1,6 @@
 /**
- * Vault scaffolding + supporting install-dir setup (spec §1 Step 9).
- * Only copies the template vault when the destination is empty — never
- * overwrites user data (spec §3.2 idempotency rule).
+ * Vault scaffolding + supporting install-dir setup. Only copies the template
+ * vault when the destination is empty — never overwrites user data.
  */
 import { cpSync, existsSync, mkdirSync, readdirSync } from "node:fs";
 import { join } from "node:path";
@@ -10,7 +9,7 @@ export class TemplateVaultMissingError extends Error {
   constructor(templateDir: string) {
     super(
       `templates/vault/ is missing at ${templateDir}. This is a repo gap — ` +
-        `the app repo must ship a seed vault at templates/vault/ (see portability-contract.md / rlo-cli-spec.md §1 Step 9). Cannot scaffold a new vault without it.`,
+        `the app repo must ship a seed vault at templates/vault/. Cannot scaffold a new vault without it.`,
     );
     this.name = "TemplateVaultMissingError";
   }
@@ -39,10 +38,11 @@ export function scaffoldVault(installDir: string, vaultPath: string): { copied: 
   return { copied: true };
 }
 
-/** Create <installDir>/logs/service/ — must exist before launchd bootstraps
- * the plists, since they reference it for stdout/stderr (spec, implementer notes). */
-export function ensureLogsDir(installDir: string): string {
-  const dir = join(installDir, "logs", "service");
+/** Create <root>/logs/service/ — must exist before launchd bootstraps the
+ * plists, since they reference it for stdout/stderr. Logs live at the
+ * self-contained root, not inside the app checkout (0.2.0 layout). */
+export function ensureLogsDir(root: string): string {
+  const dir = join(root, "logs", "service");
   mkdirSync(dir, { recursive: true });
   return dir;
 }

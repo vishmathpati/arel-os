@@ -1,18 +1,47 @@
 /**
- * Central place for the fixed, well-known paths `rlo` reads/writes.
- * Everything here honors ARELOS_CONFIG_PATH so tests/dry-runs never touch
- * the real ~/.arelos.
+ * Central place for the fixed, well-known paths `arelos` reads/writes.
+ * Everything here honors ARELOS_CONFIG_PATH / ARELOS_REGISTRY_PATH so
+ * tests/dry-runs never touch the real ~/.arelos.
  */
 import { createHash } from "node:crypto";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-export function configPath(): string {
-  return process.env.ARELOS_CONFIG_PATH ?? join(homedir(), ".arelos", "config.json");
+/**
+ * Per-install config now lives at <root>/config.json (0.2.0 self-contained
+ * layout). ARELOS_CONFIG_PATH remains the escape hatch for tests/dry-runs and
+ * for pointing a command at a specific install's config directly. There is no
+ * single well-known default anymore — callers that need "the" config either
+ * have a root in hand (installConfigPath(root)) or go through the registry.
+ */
+export function installConfigPath(root: string): string {
+  return join(root, "config.json");
+}
+
+/**
+ * Pre-0.2.0 fixed config location. Still read as a fallback "unnamed install"
+ * so 0.1.x installs remain manageable after upgrading the CLI.
+ */
+export function legacyConfigPath(): string {
+  return join(homedir(), ".arelos", "config.json");
+}
+
+/** Explicit override honored everywhere a single config path is needed directly. */
+export function configPathOverride(): string | null {
+  return process.env.ARELOS_CONFIG_PATH ?? null;
 }
 
 export function configDir(): string {
-  return join(configPath(), "..");
+  return join(homedir(), ".arelos");
+}
+
+/**
+ * Global multi-install registry: ~/.arelos/installs.json, listing every named
+ * install on this Mac ({name, slug, root, createdAt}). ARELOS_REGISTRY_PATH
+ * overrides the location for tests so they never touch the real file.
+ */
+export function registryPath(): string {
+  return process.env.ARELOS_REGISTRY_PATH ?? join(homedir(), ".arelos", "installs.json");
 }
 
 export function launchAgentsDir(): string {

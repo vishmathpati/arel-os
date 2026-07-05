@@ -1,23 +1,25 @@
 /**
- * `rlo update` (spec §2). git pull --ff-only + bun install/build + restart +
- * re-health-check. Config file untouched.
+ * `arelos update`. git pull --ff-only + bun install/build + restart +
+ * re-health-check. Config file untouched. With multiple installs registered,
+ * resolves by name (or prompts/lists per resolveInstall's rule).
  */
 import pc from "picocolors";
 import { ensureBun } from "./bun-setup.js";
 import type { ArelConfig } from "./config.js";
-import { readConfig, resolveServiceLabels } from "./config.js";
+import { resolveRoot, resolveServiceLabels } from "./config.js";
+import { resolveInstall } from "./cli-context.js";
 import { runStreaming } from "./exec.js";
 import { waitForHealthy } from "./health.js";
 import { pullLatest } from "./repo.js";
 import { bootstrapAndStart, installServiceFiles } from "./services.js";
 
-export async function updateCommand(): Promise<number> {
-  const config = readConfig();
-  if (!config) {
-    console.error("No Arel OS install found. Run `npx arelos` to install.");
+export async function updateCommand(name?: string | null): Promise<number> {
+  const result = await resolveInstall({ name, interactive: process.stdout.isTTY === true });
+  if (!result.ok) {
+    console.error(result.message);
     return 1;
   }
-  return runUpdate(config);
+  return runUpdate(result.install.config);
 }
 
 export async function runUpdate(config: ArelConfig): Promise<number> {
@@ -55,7 +57,7 @@ export async function runUpdate(config: ArelConfig): Promise<number> {
   }
 
   const labels = resolveServiceLabels(config);
-  installServiceFiles(config.installDir, labels);
+  installServiceFiles(config.installDir, resolveRoot(config), labels);
   const bootstrap = await bootstrapAndStart(labels);
   for (const e of bootstrap.errors) console.error(pc.yellow(e));
 

@@ -1,50 +1,44 @@
 /**
- * Interactive + non-interactive install flow (rlo-cli-spec.md §1).
- * Steps are numbered in comments to match the spec exactly.
+ * Interactive + non-interactive install flow. 0.2.0 owner-directed redesign:
+ * one required question (name), an optional location override (default: your
+ * home directory), silent auto-picked ports, then a summary + confirm. Every
+ * install is self-contained under `<parent>/<slug>` — see install-plan.ts.
  */
 import * as p from "@clack/prompts";
 import pc from "picocolors";
-import { ensureBun, MANUAL_BUN_INSTALL_HINT } from "./bun-setup.js";
+import { ensureBun } from "./bun-setup.js";
 import type { InstallFlags } from "./cli-args.js";
-import { readConfig, writeConfig } from "./config.js";
+import { readConfigAt, writeConfig } from "./config.js";
 import { runStreaming } from "./exec.js";
 import { formatHealthTimeoutDiagnostics, waitForHealthy } from "./health.js";
 import { lastLines, logPathFor } from "./logs.js";
 import {
-  checkInstallDir,
-  defaultInstallDirFor,
-  defaultVaultPath,
+  appDirFor,
+  checkRootDir,
   DEFAULTS,
+  defaultParentDir,
   normalizeDisplayName,
   resolvePort,
-  slugifyName,
+  rootFor,
+  slugOrFallback,
   TCC_PROTECTED_PATH_MESSAGE,
   toArelConfig,
+  vaultPathFor,
   type InstallAnswers,
 } from "./install-plan.js";
 import { bootstrapAndStart, installServiceFiles } from "./services.js";
 import { cloneRepo, isGitCheckout } from "./repo.js";
 import { ensureEnvFile, ensureLogsDir, scaffoldVault, TemplateVaultMissingError } from "./scaffold.js";
 import { runRepairMenu } from "./repair.js";
-import { configPath, deriveServiceLabels, isTccProtectedPath } from "./paths.js";
+import { installConfigPath, isTccProtectedPath } from "./paths.js";
 import { listLoadedArelosLabels } from "./launchd.js";
+import { addRegistryEntry } from "./registry.js";
 
 export async function runInstall(argv: string[], flags: InstallFlags): Promise<number> {
   // Step 0 — Preflight & existing-install detection.
   if (process.platform !== "darwin") {
     console.error("Arel OS currently supports macOS only.");
     return 1;
-  }
-
-  const existing = readConfig();
-  if (existing && !flags.yes) {
-    return runRepairMenu(existing);
-  }
-  if (existing && flags.yes) {
-    // Non-interactive re-run against an existing install: treat as repair to
-    // stay consistent with "never silently reinstall" (spec §3.1), unless the
-    // caller explicitly pointed at a fresh installDir/config.
-    console.log(pc.yellow(`Existing install detected at ${existing.installDir}; repairing.`));
   }
 
   const gitOk = flags.localRepo ? true : await checkGit();
@@ -63,12 +57,28 @@ export async function runInstall(argv: string[], flags: InstallFlags): Promise<n
     return 1;
   }
 
+  // A prior install of the *same name* (same resolved root, already a git
+  // checkout at root/app) is a repair, not a fresh install — never silently
+  // reinstall over it.
+  const rootCheck = checkRootDir(answers.root);
+  if (rootCheck.isPriorArelosInstall) {
+    const existingConfig = readConfigAt(answers.root);
+    if (existingConfig) {
+      if (!flags.yes) {
+        return runRepairMenu(existingConfig);
+      }
+      console.log(pc.yellow(`Existing install detected at ${answers.root}; repairing.`));
+    }
+  }
+
   if (!flags.yes) {
     p.note(
       [
         `Name:        ${answers.displayName}`,
-        `Install dir: ${answers.installDir}`,
-        `Vault path:  ${answers.vaultPath}`,
+        `Location:    ${answers.root}`,
+        `  app:       ${answers.installDir}`,
+        `  vault:     ${answers.vaultPath}`,
+        `  logs:      ${answers.root}/logs/service`,
         `Web port:    ${answers.webPort}`,
         `Vault port:  ${answers.vaultPort}`,
       ].join("\n"),
@@ -92,7 +102,7 @@ export async function runInstall(argv: string[], flags: InstallFlags): Promise<n
   }
   bunSpin.stop(`Bun ready (${bunResult.bunBin}).`);
 
-  // Step 8 — Get the app source.
+  // Step 8 — Get the app source into root/app.
   const installDir = answers.installDir;
   if (isGitCheckout(installDir)) {
     log(flags.yes, `Existing checkout found at ${installDir}; skipping clone.`);
@@ -143,14 +153,23 @@ export async function runInstall(argv: string[], flags: InstallFlags): Promise<n
     throw err;
   }
 
-  ensureLogsDir(installDir);
+  // Logs live at the self-contained root, not inside the app checkout.
+  ensureLogsDir(answers.root);
   const envResult = ensureEnvFile(installDir);
   log(flags.yes, envResult.created ? "Wrote .env from .env.example." : ".env already present; left untouched.");
 
-  // Step 10 — Write config.
+  // Step 10 — Write per-install config to <root>/config.json + register.
   const config = toArelConfig(answers);
-  writeConfig(config);
-  log(flags.yes, `Config written to ${configPath()}.`);
+  const cfgPath = installConfigPath(config.root);
+  writeConfig(config, cfgPath);
+  log(flags.yes, `Config written to ${cfgPath}.`);
+
+  addRegistryEntry({
+    name: answers.displayName,
+    slug: slugOrFallback(answers.displayName),
+    root: config.root,
+    createdAt: new Date().toISOString(),
+  });
 
   if (flags.noService) {
     log(flags.yes, "Skipping launchd bootstrap (--no-service).");
@@ -160,14 +179,14 @@ export async function runInstall(argv: string[], flags: InstallFlags): Promise<n
 
   // Step 10.5 — Preflight: check for a same-slug reinstall vs. an unrelated
   // Arel OS install already holding other com.arelos.* labels.
-  const labels = config.serviceLabels ?? deriveServiceLabels(installDir);
+  const labels = config.serviceLabels;
   const loadedLabels = await listLoadedArelosLabels();
   const oursAlreadyLoaded = loadedLabels.filter((l) => l === labels.web || l === labels.vault);
   const othersLoaded = loadedLabels.filter((l) => l !== labels.web && l !== labels.vault);
   if (oursAlreadyLoaded.length > 0) {
     log(
       flags.yes,
-      `Services for this install dir are already loaded (${oursAlreadyLoaded.join(", ")}) — will bootout and re-bootstrap.`,
+      `Services for this install are already loaded (${oursAlreadyLoaded.join(", ")}) — will bootout and re-bootstrap.`,
     );
   }
   if (othersLoaded.length > 0) {
@@ -182,7 +201,7 @@ export async function runInstall(argv: string[], flags: InstallFlags): Promise<n
   // Step 11 — Generate + bootstrap launchd services.
   const svcSpin = spinner(flags.yes);
   svcSpin.start("Registering background services…");
-  installServiceFiles(installDir, labels);
+  installServiceFiles(installDir, config.root, labels);
   const bootstrapResult = await bootstrapAndStart(labels);
   if (bootstrapResult.errors.length > 0) {
     svcSpin.stop("Service registration had errors.");
@@ -197,7 +216,7 @@ export async function runInstall(argv: string[], flags: InstallFlags): Promise<n
   const health = await waitForHealthy(config.webPort, config.vaultPort);
   if (!health.healthy) {
     healthSpin.stop("Health check timed out.");
-    console.error(pc.red(formatHealthTimeoutDiagnostics(installDir, (p) => lastLines(p, 10), logPathFor)));
+    console.error(pc.red(formatHealthTimeoutDiagnostics(config.root, (p) => lastLines(p, 10), logPathFor)));
     console.error(pc.dim("\nFull logs: arelos logs"));
     return 1;
   }
@@ -234,22 +253,25 @@ async function checkGit(): Promise<boolean> {
 async function collectAnswers(flags: InstallFlags): Promise<InstallAnswers | null> {
   if (flags.yes) {
     const displayName = normalizeDisplayName(flags.displayName ?? DEFAULTS.displayName);
-    const installDir = flags.installDir ?? defaultInstallDirFor(displayName);
-    const vaultPath = flags.vaultPath ?? defaultVaultPath(installDir);
-    if (isTccProtectedPath(installDir)) {
-      console.error(pc.red(`Install dir ${installDir} is not safe to use: ${TCC_PROTECTED_PATH_MESSAGE}`));
+    const root = flags.root ?? rootFor(flags.parentDir ?? defaultParentDir(), displayName);
+    if (isTccProtectedPath(root)) {
+      console.error(pc.red(`Install location ${root} is not safe to use: ${TCC_PROTECTED_PATH_MESSAGE}`));
       return null;
     }
-    if (isTccProtectedPath(vaultPath)) {
-      console.error(pc.red(`Vault path ${vaultPath} is not safe to use: ${TCC_PROTECTED_PATH_MESSAGE}`));
+    const check = checkRootDir(root);
+    if (check.nonEmpty && !check.isPriorArelosInstall) {
+      console.error(pc.red(`${check.path} already has files in it and isn't a prior Arel OS install — choose a different name or location.`));
       return null;
     }
+    const installDir = appDirFor(root);
+    const vaultPath = vaultPathFor(root);
     const webPortReq = flags.webPort ?? DEFAULTS.webPort;
     const vaultPortReq = flags.vaultPort ?? DEFAULTS.vaultPort;
     const web = await resolvePort(webPortReq);
     const vault = await resolvePort(vaultPortReq === web.resolved ? vaultPortReq + 1 : vaultPortReq);
     return {
       displayName,
+      root,
       installDir,
       vaultPath,
       webPort: web.resolved,
@@ -257,7 +279,7 @@ async function collectAnswers(flags: InstallFlags): Promise<InstallAnswers | nul
     };
   }
 
-  // Step 2 — Name your system.
+  // Step 2 — Name your system (the single required question).
   const displayNameRaw = await p.text({
     message: "What should we call your system?",
     placeholder: DEFAULTS.displayName,
@@ -265,113 +287,112 @@ async function collectAnswers(flags: InstallFlags): Promise<InstallAnswers | nul
   });
   if (p.isCancel(displayNameRaw)) return null;
   const displayName = normalizeDisplayName(String(displayNameRaw));
-  const installDirDefault = defaultInstallDirFor(displayName);
+  const slug = slugOrFallback(displayName);
 
-  // Step 3 — Install location.
-  let installDir = "";
-  for (;;) {
+  p.log.message(`We'll create everything in ~/${slug} — the app, your vault, and logs all live inside this one folder.`);
+
+  // Step 3 — Change location? (default No — we always create <parent>/<slug>, never install loose.)
+  let parentDir = defaultParentDir();
+  const changeLocation = await p.confirm({ message: "Change location?", initialValue: false });
+  if (p.isCancel(changeLocation)) return null;
+  if (changeLocation) {
     const raw = await p.text({
-      message: `Where should ${displayName} be installed?`,
-      placeholder: installDirDefault,
-      defaultValue: installDirDefault,
+      message: "Parent folder to install into (we'll create the app's folder inside it):",
+      placeholder: defaultParentDir(),
+      defaultValue: defaultParentDir(),
     });
     if (p.isCancel(raw)) return null;
-    const check = checkInstallDir(String(raw || installDirDefault));
+    parentDir = String(raw || defaultParentDir());
+  }
+
+  let root = "";
+  for (;;) {
+    const candidateRoot = rootFor(parentDir, displayName);
+    const check = checkRootDir(candidateRoot);
     if (check.isTccProtected) {
-      const safeDefault = defaultInstallDirFor(displayName);
-      p.log.error(`${TCC_PROTECTED_PATH_MESSAGE} (suggested: ${safeDefault})`);
+      p.log.error(`${TCC_PROTECTED_PATH_MESSAGE} (suggested: ${rootFor(defaultParentDir(), displayName)})`);
+      const raw = await p.text({
+        message: "Parent folder to install into:",
+        placeholder: defaultParentDir(),
+        defaultValue: defaultParentDir(),
+      });
+      if (p.isCancel(raw)) return null;
+      parentDir = String(raw || defaultParentDir());
       continue;
     }
     if (!check.parentWritable) {
       p.log.error(`Cannot write to ${check.path} — choose another location.`);
+      const raw = await p.text({ message: "Parent folder to install into:" });
+      if (p.isCancel(raw)) return null;
+      parentDir = String(raw);
       continue;
     }
     if (check.nonEmpty && !check.isPriorArelosInstall) {
-      const subfolder = `${check.path}/${slugifyName(displayName) || "arelos"}`;
       const choice = await p.select({
-        message: `${check.path} already has files in it, so installing there would fail.`,
+        message: `${check.path} already has files in it and isn't a prior install named "${displayName}".`,
         options: [
-          { value: "subfolder", label: `Install into ${subfolder} instead`, hint: "recommended" },
-          { value: "different", label: "Choose a different location" },
+          { value: "name", label: "Choose a different name" },
+          { value: "location", label: "Choose a different location" },
           { value: "cancel", label: "Cancel install" },
         ],
-        initialValue: "subfolder",
       });
       if (p.isCancel(choice) || choice === "cancel") return null;
-      if (choice === "different") continue;
-      const subCheck = checkInstallDir(subfolder);
-      if (subCheck.nonEmpty && !subCheck.isPriorArelosInstall) {
-        p.log.error(`${subCheck.path} also already has files in it — choose another location.`);
+      if (choice === "location") {
+        const raw = await p.text({ message: "Parent folder to install into:" });
+        if (p.isCancel(raw)) return null;
+        parentDir = String(raw);
         continue;
       }
-      installDir = subCheck.path;
-      break;
+      // choice === "name": re-ask for a name, keep the same parentDir.
+      const nameRaw = await p.text({
+        message: "What should we call your system?",
+        placeholder: DEFAULTS.displayName,
+        defaultValue: DEFAULTS.displayName,
+      });
+      if (p.isCancel(nameRaw)) return null;
+      return collectAnswersFromName(normalizeDisplayName(String(nameRaw)), parentDir);
     }
-    installDir = check.path;
+    root = check.path;
     break;
   }
 
-  // Step 4 — Vault location.
-  let vaultPath = "";
-  for (;;) {
-    const vaultDefault = defaultVaultPath(installDir);
-    const vaultRaw = await p.text({
-      message: "Where's your vault (notes/tasks/quests)?",
-      placeholder: vaultDefault,
-      defaultValue: vaultDefault,
-    });
-    if (p.isCancel(vaultRaw)) return null;
-    const candidate = String(vaultRaw || vaultDefault);
-    if (isTccProtectedPath(candidate)) {
-      p.log.error(`${TCC_PROTECTED_PATH_MESSAGE} (suggested: ${vaultDefault})`);
-      continue;
-    }
-    vaultPath = candidate;
-    break;
-  }
-
-  // Step 5 — Ports.
-  const webPort = await promptPort("Web port?", DEFAULTS.webPort);
-  if (webPort === null) return null;
-  const vaultPort = await promptPort("Vault port?", DEFAULTS.vaultPort === webPort ? DEFAULTS.vaultPort + 1 : DEFAULTS.vaultPort);
-  if (vaultPort === null) return null;
-
-  return {
-    displayName,
-    installDir,
-    vaultPath,
-    webPort,
-    vaultPort,
-  };
+  return finalizeAnswers(displayName, root);
 }
 
-async function promptPort(message: string, defaultPort: number): Promise<number | null> {
-  let candidate = defaultPort;
+/** Re-entry point when the user picks "choose a different name" mid-flow (avoids re-asking location). */
+async function collectAnswersFromName(displayName: string, parentDir: string): Promise<InstallAnswers | null> {
   for (;;) {
-    const resolution = await resolvePort(candidate);
-    let suggested = resolution.resolved;
-    if (!resolution.wasFree) {
-      p.log.warn(`Port ${resolution.requested} is in use — suggesting ${suggested}.`);
+    const candidateRoot = rootFor(parentDir, displayName);
+    const check = checkRootDir(candidateRoot);
+    if (check.isTccProtected) {
+      p.log.error(TCC_PROTECTED_PATH_MESSAGE);
+      return null;
     }
-    const raw = await p.text({
-      message,
-      placeholder: String(suggested),
-      defaultValue: String(suggested),
-    });
-    if (p.isCancel(raw)) return null;
-    const parsed = Number(raw || suggested);
-    if (!Number.isInteger(parsed) || parsed <= 1023) {
-      p.log.error("Enter a valid port number above 1023.");
-      candidate = suggested;
+    if (check.nonEmpty && !check.isPriorArelosInstall) {
+      p.log.error(`${check.path} also already has files in it — try a different name.`);
+      const nameRaw = await p.text({ message: "What should we call your system?" });
+      if (p.isCancel(nameRaw)) return null;
+      displayName = normalizeDisplayName(String(nameRaw));
       continue;
     }
-    const check = await resolvePort(parsed);
-    if (!check.wasFree) {
-      candidate = check.resolved;
-      continue;
-    }
-    return parsed;
+    return finalizeAnswers(displayName, check.path);
   }
+}
+
+/** Auto-pick free ports silently and assemble the final InstallAnswers. */
+async function finalizeAnswers(displayName: string, root: string): Promise<InstallAnswers> {
+  const installDir = appDirFor(root);
+  const vaultPath = vaultPathFor(root);
+  const web = await resolvePort(DEFAULTS.webPort);
+  const vault = await resolvePort(DEFAULTS.vaultPort === web.resolved ? DEFAULTS.vaultPort + 1 : DEFAULTS.vaultPort);
+  return {
+    displayName,
+    root,
+    installDir,
+    vaultPath,
+    webPort: web.resolved,
+    vaultPort: vault.resolved,
+  };
 }
 
 function spinner(quiet: boolean) {

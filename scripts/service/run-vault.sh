@@ -1,7 +1,8 @@
 #!/bin/bash
 # Arel OS vault server (Bun file-I/O API). Port + vaultPath come from
-# ~/.arelos/config.json (server/config.ts) — nothing hardcoded here.
-# Run by launchd agent com.arelos.vault — KeepAlive restarts it on any crash.
+# <root>/config.json via the ARELOS_CONFIG_PATH env var the launchd plist sets
+# (server/config.ts) — nothing hardcoded here.
+# Run by launchd agent com.arelos.<slug>.vault — KeepAlive restarts it on any crash.
 set -u
 
 # Resolve the install dir from this script's own location — no hardcoded path,

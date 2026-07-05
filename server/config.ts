@@ -21,9 +21,10 @@ export interface ArelConfig {
   webPort: number;
   vaultPort: number;
   /**
-   * Per-install launchd labels (rlo's paths.ts deriveServiceLabels). Type-only
-   * here — server code doesn't read this field, but the shape must stay
-   * honest with what rlo writes. Optional so pre-fix config files still parse.
+   * Per-install launchd labels (arelos CLI's paths.ts deriveServiceLabels).
+   * Type-only here — server code doesn't read this field, but the shape must
+   * stay honest with what the arelos CLI writes. Optional so pre-fix config
+   * files still parse.
    */
   serviceLabels?: {
     web: string;

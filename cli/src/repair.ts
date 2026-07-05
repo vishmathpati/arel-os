@@ -6,7 +6,7 @@
 import * as p from "@clack/prompts";
 import pc from "picocolors";
 import type { ArelConfig } from "./config.js";
-import { resolveServiceLabels } from "./config.js";
+import { resolveRoot, resolveServiceLabels } from "./config.js";
 import { runUpdate } from "./update.js";
 import { formatHealthTimeoutDiagnostics, waitForHealthy } from "./health.js";
 import { lastLines, logPathFor } from "./logs.js";
@@ -51,9 +51,8 @@ export async function runRepairMenu(existing: ArelConfig): Promise<number> {
 
   if (choice === "reinstall") {
     p.log.message(
-      "Reinstall elsewhere is not automatic yet — run `arelos uninstall` first if you want to reuse this " +
-        "install dir/ports, or re-run `npx arelos --install-dir <new path> --web-port <n> --vault-port <n>` " +
-        "for a side-by-side install with a different ARELOS_CONFIG_PATH.",
+      "Just re-run `npx arelos` with a different name — every install is self-contained, so a new name " +
+        "creates a fresh, independent install side-by-side with this one (see `arelos list`).",
     );
     return 0;
   }
@@ -86,7 +85,7 @@ async function runRepair(existing: ArelConfig): Promise<number> {
 
   s.start("Re-rendering and re-bootstrapping services…");
   const labels = resolveServiceLabels(existing);
-  installServiceFiles(existing.installDir, labels);
+  installServiceFiles(existing.installDir, resolveRoot(existing), labels);
   const bootstrap = await bootstrapAndStart(labels);
   s.stop(bootstrap.errors.length ? "Services re-registered with warnings." : "Services re-registered.");
   for (const e of bootstrap.errors) console.error(pc.yellow(e));
@@ -95,7 +94,7 @@ async function runRepair(existing: ArelConfig): Promise<number> {
   const health = await waitForHealthy(existing.webPort, existing.vaultPort);
   s.stop(health.healthy ? "Healthy." : "Health check timed out.");
   if (!health.healthy) {
-    console.error(pc.red(formatHealthTimeoutDiagnostics(existing.installDir, (p) => lastLines(p, 10), logPathFor)));
+    console.error(pc.red(formatHealthTimeoutDiagnostics(resolveRoot(existing), (p) => lastLines(p, 10), logPathFor)));
     console.error(pc.dim("\nFull logs: arelos logs"));
   }
   return health.healthy ? 0 : 1;

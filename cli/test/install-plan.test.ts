@@ -4,14 +4,17 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir, homedir } from "node:os";
 import { join } from "node:path";
 import {
-  checkInstallDir,
-  defaultInstallDirFor,
-  defaultVaultPath,
+  appDirFor,
+  checkRootDir,
+  defaultParentDir,
   normalizeDisplayName,
   resolvePort,
+  rootFor,
   slugifyName,
+  slugOrFallback,
   TCC_PROTECTED_PATH_MESSAGE,
   toArelConfig,
+  vaultPathFor,
 } from "../src/install-plan.js";
 import { deriveServiceLabels } from "../src/paths.js";
 import { createServer } from "node:net";
@@ -22,9 +25,9 @@ test("normalizeDisplayName trims and falls back to default on empty input", () =
   assert.equal(normalizeDisplayName("   "), "Arel OS");
 });
 
-test("defaultVaultPath appends /vault and expands ~", () => {
-  assert.equal(defaultVaultPath("~/ArelOS"), join(homedir(), "ArelOS", "vault"));
-  assert.equal(defaultVaultPath("/tmp/x"), "/tmp/x/vault");
+test("appDirFor / vaultPathFor derive fixed children of root", () => {
+  assert.equal(appDirFor("/tmp/x"), join("/tmp/x", "app"));
+  assert.equal(vaultPathFor("/tmp/x"), join("/tmp/x", "vault"));
 });
 
 test("slugifyName lowercases, dashes spaces, and strips unsafe chars", () => {
@@ -34,21 +37,26 @@ test("slugifyName lowercases, dashes spaces, and strips unsafe chars", () => {
   assert.equal(slugifyName("💫💫"), "");
 });
 
-test("defaultInstallDirFor derives ~/<slug> from the chosen name", () => {
-  assert.equal(defaultInstallDirFor("My Brain"), "~/my-brain");
-  assert.equal(defaultInstallDirFor("Arel OS"), "~/arel-os");
+test("slugOrFallback falls back to the fixed default when the name slugifies to empty", () => {
+  assert.equal(slugOrFallback("💫💫"), "arelos");
+  assert.equal(slugOrFallback("   "), "arelos");
+  assert.equal(slugOrFallback("My Brain"), "my-brain");
 });
 
-test("defaultInstallDirFor falls back to the fixed default when the name slugifies to empty", () => {
-  assert.equal(defaultInstallDirFor("💫💫"), "~/ArelOS");
-  assert.equal(defaultInstallDirFor("   "), "~/ArelOS");
+test("defaultParentDir is the home directory", () => {
+  assert.equal(defaultParentDir(), "~");
 });
 
-test("checkInstallDir flags a non-empty dir that isn't a prior arelos checkout", () => {
-  const dir = mkdtempSync(join(tmpdir(), "rlo-installdir-test-"));
+test("rootFor always appends the slug, even for a custom parent", () => {
+  assert.equal(rootFor("~", "My Brain"), join(homedir(), "my-brain"));
+  assert.equal(rootFor("/tmp", "My Brain"), join("/tmp", "my-brain"));
+});
+
+test("checkRootDir flags a non-empty dir that isn't a prior arelos install", () => {
+  const dir = mkdtempSync(join(tmpdir(), "arelos-root-test-"));
   try {
     writeFileSync(join(dir, "random-file.txt"), "hi");
-    const check = checkInstallDir(dir);
+    const check = checkRootDir(dir);
     assert.equal(check.exists, true);
     assert.equal(check.nonEmpty, true);
     assert.equal(check.isPriorArelosInstall, false);
@@ -57,31 +65,31 @@ test("checkInstallDir flags a non-empty dir that isn't a prior arelos checkout",
   }
 });
 
-test("checkInstallDir recognizes a prior arelos checkout (.git + package.json)", () => {
-  const dir = mkdtempSync(join(tmpdir(), "rlo-installdir-test-"));
+test("checkRootDir recognizes a prior arelos install (root/app is a git checkout)", () => {
+  const dir = mkdtempSync(join(tmpdir(), "arelos-root-test-"));
   try {
-    mkdirSync(join(dir, ".git"));
-    writeFileSync(join(dir, "package.json"), "{}");
-    const check = checkInstallDir(dir);
+    mkdirSync(join(dir, "app", ".git"), { recursive: true });
+    writeFileSync(join(dir, "app", "package.json"), "{}");
+    const check = checkRootDir(dir);
     assert.equal(check.isPriorArelosInstall, true);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 });
 
-test("checkInstallDir reports empty for a fresh nonexistent path", () => {
-  const check = checkInstallDir(join(tmpdir(), "rlo-does-not-exist-xyz"));
+test("checkRootDir reports empty for a fresh nonexistent path", () => {
+  const check = checkRootDir(join(tmpdir(), "arelos-does-not-exist-xyz"));
   assert.equal(check.exists, false);
   assert.equal(check.nonEmpty, false);
 });
 
-test("checkInstallDir flags isTccProtected for a path inside ~/Desktop", () => {
-  const check = checkInstallDir(join(homedir(), "Desktop", "rlo-tcc-test"));
+test("checkRootDir flags isTccProtected for a path inside ~/Desktop", () => {
+  const check = checkRootDir(join(homedir(), "Desktop", "arelos-tcc-test"));
   assert.equal(check.isTccProtected, true);
 });
 
-test("checkInstallDir does not flag isTccProtected for a normal home-relative path", () => {
-  const check = checkInstallDir(join(homedir(), "rlo-tcc-test-safe"));
+test("checkRootDir does not flag isTccProtected for a normal home-relative path", () => {
+  const check = checkRootDir(join(homedir(), "arelos-tcc-test-safe"));
   assert.equal(check.isTccProtected, false);
 });
 
@@ -138,18 +146,20 @@ test("resolvePort proposes a free port when the requested one has an IPv6-only l
   }
 });
 
-test("toArelConfig expands ~ in installDir/vaultPath and stamps version 1", () => {
+test("toArelConfig expands ~ in root/installDir/vaultPath and stamps version 1", () => {
   const config = toArelConfig({
     displayName: "Test Brain",
-    installDir: "~/arelos-test-install",
-    vaultPath: "~/arelos-test-vault",
+    root: "~/arelos-test-root",
+    installDir: "~/arelos-test-root/app",
+    vaultPath: "~/arelos-test-root/vault",
     webPort: 1400,
     vaultPort: 5300,
   });
   assert.equal(config.version, 1);
-  assert.equal(config.installDir, join(homedir(), "arelos-test-install"));
-  assert.equal(config.vaultPath, join(homedir(), "arelos-test-vault"));
+  assert.equal(config.root, join(homedir(), "arelos-test-root"));
+  assert.equal(config.installDir, join(homedir(), "arelos-test-root", "app"));
+  assert.equal(config.vaultPath, join(homedir(), "arelos-test-root", "vault"));
   assert.equal(config.webPort, 1400);
   assert.equal(config.vaultPort, 5300);
-  assert.deepEqual(config.serviceLabels, deriveServiceLabels(join(homedir(), "arelos-test-install")));
+  assert.deepEqual(config.serviceLabels, deriveServiceLabels(join(homedir(), "arelos-test-root")));
 });

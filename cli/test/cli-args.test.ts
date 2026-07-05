@@ -13,18 +13,18 @@ test("parseInstallFlags reads all install-answer overrides", () => {
   const flags = parseInstallFlags([
     "--display-name",
     "Test Brain",
-    "--install-dir",
-    "/tmp/install",
-    "--vault-path",
-    "/tmp/vault",
+    "--root",
+    "/tmp/test-brain-root",
+    "--parent-dir",
+    "/tmp",
     "--web-port",
     "5291",
     "--vault-port",
     "5292",
   ]);
   assert.equal(flags.displayName, "Test Brain");
-  assert.equal(flags.installDir, "/tmp/install");
-  assert.equal(flags.vaultPath, "/tmp/vault");
+  assert.equal(flags.root, "/tmp/test-brain-root");
+  assert.equal(flags.parentDir, "/tmp");
   assert.equal(flags.webPort, 5291);
   assert.equal(flags.vaultPort, 5292);
 });

@@ -8,8 +8,12 @@
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><true/>
   <key>ThrottleInterval</key><integer>10</integer>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>ARELOS_CONFIG_PATH</key><string>{{ROOT_DIR}}/config.json</string>
+  </dict>
   <key>WorkingDirectory</key><string>{{INSTALL_DIR}}</string>
-  <key>StandardOutPath</key><string>{{INSTALL_DIR}}/logs/service/vault.log</string>
-  <key>StandardErrorPath</key><string>{{INSTALL_DIR}}/logs/service/vault.log</string>
+  <key>StandardOutPath</key><string>{{ROOT_DIR}}/logs/service/vault.log</string>
+  <key>StandardErrorPath</key><string>{{ROOT_DIR}}/logs/service/vault.log</string>
 </dict>
 </plist>

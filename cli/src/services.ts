@@ -1,7 +1,11 @@
 /**
- * Ties together plist rendering + writing + launchd bootstrap (spec §1 Step 11,
- * §3.1 Repair). Also used by `--no-service` dry runs, which stop before the
- * launchctl calls (see install.ts).
+ * Ties together plist rendering + writing + launchd bootstrap. Also used by
+ * `--no-service` dry runs, which stop before the launchctl calls (see
+ * install.ts).
+ *
+ * `installDir` is the app checkout (root/app); `root` is the self-contained
+ * install root that owns logs/ and config.json (0.2.0 layout). Both are
+ * needed because the plist bakes in both {{INSTALL_DIR}} and {{ROOT_DIR}}.
  */
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -16,7 +20,11 @@ export interface RenderedService {
   xml: string;
 }
 
-export function renderServicePlists(installDir: string, labels: ServiceLabels = deriveServiceLabels(installDir)): RenderedService[] {
+export function renderServicePlists(
+  installDir: string,
+  root: string,
+  labels: ServiceLabels = deriveServiceLabels(root),
+): RenderedService[] {
   const specs: Array<{ label: string; templateFile: string }> = [
     { label: labels.web, templateFile: "web.plist.tmpl" },
     { label: labels.vault, templateFile: "vault.plist.tmpl" },
@@ -27,23 +35,27 @@ export function renderServicePlists(installDir: string, labels: ServiceLabels = 
       throw new Error(`Missing plist template: ${templatePath}`);
     }
     const template = readFileSync(templatePath, "utf8");
-    const xml = renderPlistTemplate(template, installDir, label);
+    const xml = renderPlistTemplate(template, installDir, root, label);
     return { label, templatePath, targetPath: plistPath(label), xml };
   });
 }
 
 /** Write rendered plists to ~/Library/LaunchAgents and chmod the run scripts. */
-export function installServiceFiles(installDir: string, labels: ServiceLabels = deriveServiceLabels(installDir)): RenderedService[] {
+export function installServiceFiles(
+  installDir: string,
+  root: string,
+  labels: ServiceLabels = deriveServiceLabels(root),
+): RenderedService[] {
   mkdirSync(launchAgentsDir(), { recursive: true });
-  // The plists' StandardOutPath/StandardErrorPath point at <installDir>/logs/service/*.log;
+  // The plists' StandardOutPath/StandardErrorPath point at <root>/logs/service/*.log;
   // launchd needs that directory to exist before it can bootstrap the job (a
   // missing log dir is one confirmed cause of the "Bootstrap failed: 5:
   // Input/output error" field report — see launchd.ts docstring). install.ts
   // already calls ensureLogsDir before this, but repair/update funnel through
   // here too, so guarantee it unconditionally rather than relying on callers
   // to remember.
-  mkdirSync(join(installDir, "logs", "service"), { recursive: true });
-  const rendered = renderServicePlists(installDir, labels);
+  mkdirSync(join(root, "logs", "service"), { recursive: true });
+  const rendered = renderServicePlists(installDir, root, labels);
   for (const svc of rendered) {
     writeFileSync(svc.targetPath, svc.xml);
   }

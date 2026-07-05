@@ -30,7 +30,7 @@ arelos/
 │   ├── io.ts         ← vault read/write primitives
 │   ├── focus-bridge.ts
 │   └── engine/       ← the optional AI "Engine" that runs Recipes (automations)
-├── cli/              ← standalone npm package: installer + service manager (`arelos` / `rlo`)
+├── cli/              ← standalone npm package: installer + service manager (`arelos`)
 ├── templates/vault/   ← the empty vault scaffold copied on first install
 └── scripts/
 ```

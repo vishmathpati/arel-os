@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 test("writeConfig then readConfig round-trips and writes atomically (no .tmp left behind)", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "rlo-config-test-"));
+  const dir = mkdtempSync(join(tmpdir(), "arelos-config-test-"));
   const configFile = join(dir, "config.json");
   process.env.ARELOS_CONFIG_PATH = configFile;
   try {
@@ -47,7 +47,7 @@ test("writeConfig then readConfig round-trips and writes atomically (no .tmp lef
 });
 
 test("readConfig throws on an unsupported version", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "rlo-config-test-"));
+  const dir = mkdtempSync(join(tmpdir(), "arelos-config-test-"));
   const configFile = join(dir, "config.json");
   process.env.ARELOS_CONFIG_PATH = configFile;
   try {
@@ -62,7 +62,7 @@ test("readConfig throws on an unsupported version", async () => {
 });
 
 test("writeConfig/readConfig round-trips the optional serviceLabels field", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "rlo-config-test-"));
+  const dir = mkdtempSync(join(tmpdir(), "arelos-config-test-"));
   const configFile = join(dir, "config.json");
   process.env.ARELOS_CONFIG_PATH = configFile;
   try {

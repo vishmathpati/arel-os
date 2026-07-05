@@ -1,6 +1,6 @@
 /**
  * HTTP health probes for the vault (`/config`) and web (`/`) services
- * (spec §1 Step 12, §2 rlo status). Pure fetch-based, no deps.
+ * (used by `arelos install` and `arelos status`). Pure fetch-based, no deps.
  */
 
 export interface VaultHealth {
@@ -135,12 +135,12 @@ export function matchLogSignature(logTail: string): LogSignatureHint | null {
  * (no direct fs access) while install.ts/repair.ts wire in the real reader.
  */
 export function formatHealthTimeoutDiagnostics(
-  installDir: string,
+  logsRoot: string,
   readTail: (logPath: string) => string,
-  logPathFor: (installDir: string, which: "web" | "vault") => string,
+  logPathFor: (logsRoot: string, which: "web" | "vault") => string,
 ): string {
-  const webLogPath = logPathFor(installDir, "web");
-  const vaultLogPath = logPathFor(installDir, "vault");
+  const webLogPath = logPathFor(logsRoot, "web");
+  const vaultLogPath = logPathFor(logsRoot, "vault");
   const webTail = readTail(webLogPath);
   const vaultTail = readTail(vaultLogPath);
 

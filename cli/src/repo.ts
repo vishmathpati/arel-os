@@ -1,7 +1,7 @@
 /**
- * Getting the app source onto disk (spec §1 Step 8) and keeping it updated
- * (spec §2 rlo update). Supports a `--local-repo <path>` override for
- * development/dry-run testing so we never have to hit GitHub in tests.
+ * Getting the app source onto disk and keeping it updated (`arelos update`).
+ * Supports a `--local-repo <path>` override for development/dry-run testing
+ * so we never have to hit GitHub in tests.
  */
 import { existsSync } from "node:fs";
 import { join } from "node:path";
@@ -49,7 +49,7 @@ export async function currentRevision(installDir: string): Promise<string | null
   return res.code === 0 ? res.stdout.trim() : null;
 }
 
-/** Best-effort "is the local branch behind origin" check (spec §2 rlo status). */
+/** Best-effort "is the local branch behind origin" check (`arelos status`). */
 export async function isBehindOrigin(installDir: string): Promise<boolean | null> {
   const fetchRes = await runCapture("git", ["-C", installDir, "fetch", "--dry-run"]);
   if (fetchRes.code !== 0) return null;

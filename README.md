@@ -17,8 +17,10 @@ folder in Obsidian, or a text editor, and it's all still there. Yours forever.
 npx arelos
 ```
 
-One command. It's interactive — it'll ask what to call your system, where to
-install it, and which ports to use, then get out of your way.
+One command. It's interactive — it'll ask what to call your system, offer to
+change where it's installed (defaults to your home directory), then get out
+of your way. Everything for your install — the app, your vault, and its logs
+— lives inside one self-contained folder; ports are picked automatically.
 
 Requirements: macOS only for v1. Nothing needs to be preinstalled — if Bun
 isn't already on your machine, the installer installs it for you.
@@ -42,14 +44,18 @@ The core app needs zero API keys and works fully offline from the first run.
 ## After install
 
 ```
-rlo status      # is it running, and where
-rlo update      # pull the latest version
-rlo logs        # tail the service logs
-rlo uninstall   # remove it cleanly
+arelos list        # see every install on this Mac
+arelos status      # is it running, and where
+arelos update      # pull the latest version
+arelos logs        # tail the service logs
+arelos uninstall   # remove it cleanly
 ```
 
 Two `launchd` services keep the app and its vault server running in the
 background, so it's always there at `localhost` — no terminal window to babysit.
+Running more than one install on the same Mac? Pass its name to any of the
+commands above (e.g. `arelos status "Work Brain"`) — with just one install, the
+name is optional.
 
 ## Philosophy
 

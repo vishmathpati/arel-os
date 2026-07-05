@@ -1,21 +1,25 @@
 /**
- * `rlo status` (spec §2). Config summary + service state + port probes +
- * git revision / behind-origin check.
+ * `arelos status`. Config summary + service state + port probes + git revision /
+ * behind-origin check. With multiple installs registered, resolves by name
+ * (or prompts/lists per resolveInstall's rule).
  */
 import pc from "picocolors";
-import { readConfig, resolveServiceLabels } from "./config.js";
+import { resolveServiceLabels } from "./config.js";
+import { resolveInstall } from "./cli-context.js";
 import { checkVaultHealth, checkWebHealth } from "./health.js";
 import { getServiceStatus } from "./launchd.js";
 import { currentRevision, isBehindOrigin } from "./repo.js";
 
-export async function statusCommand(): Promise<number> {
-  const config = readConfig();
-  if (!config) {
-    console.error("No Arel OS install found. Run `npx arelos` to install.");
+export async function statusCommand(name?: string | null): Promise<number> {
+  const result = await resolveInstall({ name, interactive: process.stdout.isTTY === true });
+  if (!result.ok) {
+    console.error(result.message);
     return 1;
   }
+  const config = result.install.config;
 
   console.log(pc.bold(config.displayName));
+  if (config.root) console.log(`  Root:        ${config.root}`);
   console.log(`  Install dir: ${config.installDir}`);
   console.log(`  Vault path:  ${config.vaultPath}`);
   console.log(`  Web port:    ${config.webPort}`);

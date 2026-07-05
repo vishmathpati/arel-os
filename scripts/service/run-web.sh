@@ -9,7 +9,11 @@ set -u
 # so the same script works at any install dir.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-CONFIG="$HOME/.arelos/config.json"
+# Per-install config lives at <root>/config.json; the launchd plist sets
+# ARELOS_CONFIG_PATH so this script (and server/config.ts) both find it
+# regardless of install root. Falls back to the legacy fixed location for
+# pre-0.2.0 installs whose plist predates this env var.
+CONFIG="${ARELOS_CONFIG_PATH:-$HOME/.arelos/config.json}"
 
 # Prepend common tool dirs; discover bun/node without hardcoding a user home.
 export PATH="/opt/homebrew/bin:$HOME/.bun/bin:$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
