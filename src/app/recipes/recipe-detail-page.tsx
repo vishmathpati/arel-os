@@ -13,6 +13,7 @@
  */
 
 import { DetailShell } from "@/app/detail/detail-kit";
+import { GwsInstallGuide } from "@/app/recipes/gws-install-guide";
 import { ProjectSyncTable } from "@/app/recipes/project-sync-table";
 import {
   type Cadence,
@@ -234,7 +235,10 @@ function SystemChecks({ name }: { name: string }) {
         ) : health ? (
           <div className="flex flex-col divide-y divide-border">
             {health.dependencies.map((dep) => (
-              <DependencyRow key={dep.key} dep={dep} />
+              <div key={dep.key}>
+                <DependencyRow dep={dep} />
+                {dep.key === "gmail" && dep.reason === "not-installed" && <GwsInstallGuide />}
+              </div>
             ))}
           </div>
         ) : null}

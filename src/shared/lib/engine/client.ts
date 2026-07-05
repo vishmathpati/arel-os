@@ -155,6 +155,14 @@ export async function readScheduleState(): Promise<Record<string, SchedulerEntry
 
 /** Live status of one dependency a recipe relies on (Gmail, model, etc.). */
 export type HealthStatus = "ok" | "down" | "warn";
+
+/**
+ * Machine-readable reason for a "gmail" dependency failure — lets the UI
+ * show a specific fix (e.g. the gws install guide) instead of pattern-
+ * matching `detail`'s prose. Only populated for the "gmail" dependency.
+ */
+export type GmailFailureReason = "not-installed" | "not-authenticated" | "other";
+
 export interface DependencyHealth {
   key: string;
   label: string;
@@ -163,6 +171,8 @@ export interface DependencyHealth {
   detail: string;
   /** ISO timestamp of when this dependency was last probed. */
   checkedAt: string;
+  /** Structured failure reason — currently only set for the "gmail" dependency. */
+  reason?: GmailFailureReason;
 }
 
 /** A recipe's overall health — the roll-up of its dependency checks. */

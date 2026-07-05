@@ -19,6 +19,14 @@ import { nextDue, parseTrigger } from "./schedule.ts";
 
 export type HealthStatus = "ok" | "down" | "warn";
 
+/**
+ * Machine-readable reason code for a "gmail" dependency failure, alongside its
+ * human `detail` string — lets the UI show a specific fix (e.g. an install
+ * guide) instead of pattern-matching the detail text. Absent for dependencies
+ * where a structured reason isn't needed.
+ */
+export type GmailFailureReason = "not-installed" | "not-authenticated" | "other";
+
 /** One dependency's live status, written for a human (no jargon, no paths). */
 export interface DependencyHealth {
   /** Stable key: "gmail" | "model" | "currency" | "vault". */
@@ -30,6 +38,8 @@ export interface DependencyHealth {
   detail: string;
   /** ISO timestamp when this was last actually probed. */
   checkedAt: string;
+  /** Structured failure reason — currently only populated for the "gmail" dependency. */
+  reason?: GmailFailureReason;
 }
 
 /** A recipe's overall health = the roll-up of its dependency checks. */
@@ -71,6 +81,25 @@ function nowIso(): string {
 
 // ── individual probes ───────────────────────────────────────────────────────────
 
+/**
+ * Is the `gws` (Google Workspace CLI) binary on PATH at all? A cheap, separate
+ * check from full auth — `gws --version` never touches the network or needs
+ * credentials, so this isolates "not installed" from "installed but not
+ * signed in" without waiting on the slower `checkGmail` probe below. Exported
+ * so other surfaces (e.g. a recipe's install-guide panel) can ask the same
+ * question directly instead of parsing `checkGmail`'s prose.
+ */
+export async function isGwsOnPath(): Promise<boolean> {
+  try {
+    const proc = Bun.spawn(["gws", "--version"], { stdout: "ignore", stderr: "ignore" });
+    const code = await proc.exited;
+    return code === 0;
+  } catch {
+    // Bun.spawn throws synchronously when the binary isn't on PATH.
+    return false;
+  }
+}
+
 /** Gmail (the `gws` CLI): is the binary reachable AND is the account authenticated? */
 async function checkGmail(): Promise<DependencyHealth> {
   const base = { key: "gmail", label: "Gmail access", checkedAt: nowIso() };
@@ -110,12 +139,14 @@ async function checkGmail(): Promise<DependencyHealth> {
         return {
           ...base,
           status: "down",
+          reason: "not-authenticated",
           detail: "Gmail sign-in has expired or failed — it needs to be re-authenticated.",
         };
       }
       return {
         ...base,
         status: "down",
+        reason: "other",
         detail: "The Gmail tool returned an error and couldn't read your mailbox.",
       };
     } finally {
@@ -126,6 +157,7 @@ async function checkGmail(): Promise<DependencyHealth> {
     return {
       ...base,
       status: "down",
+      reason: "not-installed",
       detail: "The Gmail tool isn't installed where the automation runs (it can't be found).",
     };
   }

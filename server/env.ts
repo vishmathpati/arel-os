@@ -22,11 +22,19 @@ import { promises as fs } from "node:fs";
 import { dirname } from "node:path";
 import { loadConfig } from "./config.ts";
 
-/** The only env vars this endpoint is allowed to write (spec §5). */
+/**
+ * The only env vars this endpoint is allowed to write (spec §5). The two
+ * GOOGLE_WORKSPACE_CLI_* keys back the finance-sync install guide (Settings
+ * has no UI for these yet — they're written via the same generic endpoint
+ * the guide panel calls) — same security posture as the AI Gateway key:
+ * allowlisted, fixed path, no echo.
+ */
 export const ALLOWED_ENV_KEYS = [
   "AI_GATEWAY_API_KEY",
   "ARELOS_ENGINE_MODEL",
   "ARELOS_ENGINE_FALLBACK",
+  "GOOGLE_WORKSPACE_CLI_CREDENTIALS_FILE",
+  "GOOGLE_WORKSPACE_CLI_KEYRING_BACKEND",
 ] as const;
 
 export type AllowedEnvKey = (typeof ALLOWED_ENV_KEYS)[number];

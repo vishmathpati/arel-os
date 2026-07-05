@@ -1,5 +1,5 @@
 import { APICallError } from "ai";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // `validateGatewayKey` (server/engine/health.ts) must classify errors, not just
 // pass/fail on whether the gateway call throws. Mock `generateText` (the real
@@ -26,7 +26,7 @@ vi.mock("./recipe.ts", () => ({ loadRecipe: vi.fn() }));
 vi.mock("../io.ts", () => ({ listVaultDir: vi.fn() }));
 
 import { generateText } from "ai";
-import { validateGatewayKey } from "./health.ts";
+import { isGwsOnPath, validateGatewayKey } from "./health.ts";
 
 const mockGenerateText = vi.mocked(generateText);
 
@@ -184,5 +184,38 @@ describe("validateGatewayKey", () => {
     mockGenerateText.mockRejectedValue(err);
     const result = await validateGatewayKey();
     expect(result.status).toBe("unreachable");
+  });
+});
+
+// `isGwsOnPath` backs the finance-sync install-guide panel: it must tell
+// "not installed" apart from any other failure so the UI only shows the
+// install guide when that's genuinely the problem. `Bun.spawn` is a global
+// this suite runs without (vitest's worker environment has no `Bun` even
+// under `bun run`), so `vi.stubGlobal` stands in a fake `Bun` for these tests
+// only — confirmed live (see server/engine/health.ts) that the real
+// Bun.spawn throws synchronously with "Executable not found in $PATH" when a
+// binary isn't installed, which the third case reproduces.
+describe("isGwsOnPath", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("returns true when `gws --version` exits 0", async () => {
+    vi.stubGlobal("Bun", { spawn: () => ({ exited: Promise.resolve(0) }) });
+    expect(await isGwsOnPath()).toBe(true);
+  });
+
+  it("returns false when `gws --version` exits non-zero", async () => {
+    vi.stubGlobal("Bun", { spawn: () => ({ exited: Promise.resolve(1) }) });
+    expect(await isGwsOnPath()).toBe(false);
+  });
+
+  it("returns false when Bun.spawn throws (binary not on PATH)", async () => {
+    vi.stubGlobal("Bun", {
+      spawn: () => {
+        throw new Error('Executable not found in $PATH: "gws"');
+      },
+    });
+    expect(await isGwsOnPath()).toBe(false);
   });
 });
