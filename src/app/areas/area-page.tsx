@@ -9,6 +9,7 @@
  */
 
 import { AreaStatBand } from "@/app/areas/area-stat-band";
+import { useAreasContext } from "@/app/areas/areas-provider";
 import { NewSubAreaDialog } from "@/app/areas/new-sub-area-dialog";
 import { useArea } from "@/app/areas/use-area";
 import { AreaDatabasesSection } from "@/app/databases/area-databases-section";
@@ -23,16 +24,28 @@ import { useQuests } from "@/app/quests/use-quests";
 import { TASK_GRID, TaskRow } from "@/app/tasks/task-row";
 import { useTasks } from "@/app/tasks/use-tasks";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/shared/components/ui/alert-dialog";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Skeleton } from "@/shared/components/ui/skeleton";
-import { AREA_OPTIONS, areaIcon, areaSlug, areaWikilink } from "@/shared/lib/areas";
+import { areaSlug, areaWikilink } from "@/shared/lib/areas";
 import type { Project } from "@/shared/lib/project-data";
 import { isProjectFinished } from "@/shared/lib/projects";
 import { isQuestFinished } from "@/shared/lib/quests";
 import type { Task } from "@/shared/lib/tasks/tasks";
 import { cn } from "@/shared/lib/utils";
 import {
+  Archive,
+  ArchiveRestore,
   Compass,
   Database,
   FileStack,
@@ -69,23 +82,41 @@ export function AreaPage() {
     notFound,
     error,
     reload,
+    saveName,
     saveDescription,
     saveBody,
+    archive,
     addSubArea,
   } = useArea(slug);
+  const { reload: reloadAreasNav } = useAreasContext();
   const tasksApi = useTasks();
   const projectsApi = useProjects();
   const questsApi = useQuests();
   const [draft, setDraft] = useState("");
   const [projectDraft, setProjectDraft] = useState("");
   const [expandedPath, setExpandedPath] = useState<string | null>(null);
+  const [confirmArchive, setConfirmArchive] = useState(false);
   const toggleExpand = useCallback(
     (task: Task) => setExpandedPath((prev) => (prev === task.path ? null : task.path)),
     [],
   );
 
-  const Icon = areaIcon(slug) ?? Compass;
-  const color = AREA_OPTIONS.find((a) => a.slug === slug)?.color ?? null;
+  const Icon = area?.icon ?? Compass;
+  const color = area?.color ?? null;
+
+  const handleArchiveToggle = useCallback(async () => {
+    if (!area) return;
+    await archive(!area.archived);
+    reloadAreasNav();
+  }, [area, archive, reloadAreasNav]);
+
+  const handleRename = useCallback(
+    async (name: string) => {
+      await saveName(name);
+      reloadAreasNav();
+    },
+    [saveName, reloadAreasNav],
+  );
 
   // Roll-up: include items filed to sub-areas in this parent's view.
   // slugSet = { parentSlug, subArea1Slug, subArea2Slug, … }
@@ -162,7 +193,7 @@ export function AreaPage() {
 
   return (
     <Shell crumbLabel={area.name}>
-      {/* Area header — identity icon + name + inline-editable description */}
+      {/* Area header — identity icon + inline-editable name/description + archive */}
       <div className="flex items-start gap-3">
         <span
           className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-card"
@@ -173,10 +204,34 @@ export function AreaPage() {
         {/* The one-line description is the area's frontmatter tagline (stays). Per
             BRIEF D29 the Area also gets a full Plate editor body + subpages in Ch7. */}
         <div className="min-w-0 flex-1">
-          <h1 className="text-heading font-semibold leading-tight">{area.name}</h1>
+          <InlineTitle value={area.name} onSave={handleRename} />
           <InlineDescription value={area.description} onSave={saveDescription} />
         </div>
+        {!area.parent && (
+          <Button variant="outline" size="sm" onClick={() => setConfirmArchive(true)}>
+            {area.archived ? (
+              <>
+                <ArchiveRestore className="size-4" />
+                Restore
+              </>
+            ) : (
+              <>
+                <Archive className="size-4" />
+                Archive
+              </>
+            )}
+          </Button>
+        )}
       </div>
+
+      {area.archived && (
+        <Alert className="mt-4">
+          <AlertTitle>This area is archived</AlertTitle>
+          <AlertDescription>
+            It's hidden from the sidebar. Restore it to file new items here again.
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="mt-6">
         <AreaStatBand
@@ -376,6 +431,33 @@ export function AreaPage() {
           </Button>
         </Alert>
       )}
+
+      <AlertDialog open={confirmArchive} onOpenChange={setConfirmArchive}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {area.archived ? "Restore this area?" : "Archive this area?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {area.archived
+                ? `“${area.name}” will reappear in the sidebar.`
+                : `“${area.name}” will be hidden from the sidebar. Anything filed to it stays put — you can restore it later.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              autoFocus
+              onClick={() => {
+                setConfirmArchive(false);
+                handleArchiveToggle();
+              }}
+            >
+              {area.archived ? "Restore" : "Archive"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Shell>
   );
 }
@@ -442,6 +524,54 @@ function LoadingTable() {
         </div>
       ))}
     </div>
+  );
+}
+
+/** Click-to-edit area name (the h1). Enter/blur saves; Esc cancels; empty is a no-op. */
+function InlineTitle({
+  value,
+  onSave,
+}: {
+  value: string;
+  onSave: (next: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+
+  if (editing) {
+    return (
+      <Input
+        autoFocus
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => {
+          setEditing(false);
+          if (draft.trim()) onSave(draft.trim());
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.currentTarget.blur();
+          } else if (e.key === "Escape") {
+            setDraft(value);
+            setEditing(false);
+          }
+        }}
+        className="h-9 border-0 bg-transparent px-0 text-heading font-semibold leading-tight shadow-none focus-visible:ring-0 dark:bg-transparent"
+      />
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        setDraft(value);
+        setEditing(true);
+      }}
+      className="block cursor-text text-left text-heading font-semibold leading-tight transition-colors hover:text-foreground/80"
+    >
+      {value}
+    </button>
   );
 }
 

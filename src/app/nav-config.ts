@@ -1,13 +1,10 @@
 import {
   Activity,
-  Briefcase,
   CalendarCheck,
   CalendarRange,
   Compass,
   Database,
   FolderKanban,
-  GraduationCap,
-  HeartPulse,
   HelpCircle,
   Home,
   Inbox,
@@ -15,11 +12,8 @@ import {
   ListTodo,
   type LucideIcon,
   Moon,
-  Sparkles,
   Sunrise,
   Timer,
-  Video,
-  Wallet,
   Workflow,
 } from "lucide-react";
 
@@ -39,7 +33,10 @@ export interface NavGroup {
 /**
  * Sidebar navigation. Reconciles DESIGN.md's sidebar structure (Home/Inbox/
  * Library + Areas + Rituals) with ROADMAP's nav groups (Tasks/Quests/Projects)
- * so every wired route has a reachable entry point.
+ * so every wired route has a reachable entry point. The Areas group itself is
+ * NOT listed here — top-level areas are fully user-defined (read from the
+ * vault), so the sidebar renders them dynamically via <AreasNav> instead
+ * (see app-sidebar.tsx).
  */
 export const navGroups: NavGroup[] = [
   {
@@ -53,17 +50,6 @@ export const navGroups: NavGroup[] = [
       { label: "Library", to: "/library", icon: Library },
       { label: "Databases", to: "/databases", icon: Database },
       { label: "Recipes", to: "/recipes", icon: Workflow },
-    ],
-  },
-  {
-    label: "Areas",
-    items: [
-      { label: "Health", to: "/areas/health", icon: HeartPulse },
-      { label: "Finance", to: "/areas/finance", icon: Wallet },
-      { label: "Learning", to: "/areas/learning", icon: GraduationCap },
-      { label: "Spirituality", to: "/areas/spirituality", icon: Sparkles },
-      { label: "YouTube", to: "/areas/youtube", icon: Video },
-      { label: "Business", to: "/areas/business", icon: Briefcase },
     ],
   },
   {

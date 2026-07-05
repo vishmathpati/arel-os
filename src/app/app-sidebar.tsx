@@ -43,33 +43,30 @@ export function AppSidebar() {
       <SidebarContent>
         {navGroups.map((group, index) => (
           <Fragment key={group.label ?? `group-${index}`}>
-            {/* Skip the hardcoded "Areas" group — replaced by the dynamic AreasNav below. */}
-            {group.label !== "Areas" && (
-              <SidebarGroup>
-                {group.label ? <SidebarGroupLabel>{group.label}</SidebarGroupLabel> : null}
-                <SidebarGroupContent>
-                  <SidebarMenu>
-                    {group.items.map((item) => (
-                      <SidebarMenuItem key={item.to}>
-                        <SidebarMenuButton
-                          asChild
-                          tooltip={item.label}
-                          isActive={isItemActive(pathname, item.to)}
-                        >
-                          <NavLink to={item.to}>
-                            <item.icon />
-                            <span>{item.label}</span>
-                          </NavLink>
-                        </SidebarMenuButton>
-                        {item.badge === "inbox" && inboxCount > 0 && (
-                          <SidebarMenuBadge>{inboxCount}</SidebarMenuBadge>
-                        )}
-                      </SidebarMenuItem>
-                    ))}
-                  </SidebarMenu>
-                </SidebarGroupContent>
-              </SidebarGroup>
-            )}
+            <SidebarGroup>
+              {group.label ? <SidebarGroupLabel>{group.label}</SidebarGroupLabel> : null}
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {group.items.map((item) => (
+                    <SidebarMenuItem key={item.to}>
+                      <SidebarMenuButton
+                        asChild
+                        tooltip={item.label}
+                        isActive={isItemActive(pathname, item.to)}
+                      >
+                        <NavLink to={item.to}>
+                          <item.icon />
+                          <span>{item.label}</span>
+                        </NavLink>
+                      </SidebarMenuButton>
+                      {item.badge === "inbox" && inboxCount > 0 && (
+                        <SidebarMenuBadge>{inboxCount}</SidebarMenuBadge>
+                      )}
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
             {index === 0 && (
               <>
                 <PagesNav />
