@@ -72,6 +72,19 @@ test("PROXY_SCRIPT_SOURCE: binds the wildcard address and carries the loopback-o
   assert.match(PROXY_SCRIPT_SOURCE, /if \(!isLoopbackAddress\(clientSocket\.remoteAddress\)\)/);
 });
 
+test("PROXY_SCRIPT_SOURCE: dials both loopback families — 127.0.0.1 first, ::1 fallback on refused/unreachable (vite-preview [::1]-only field bug)", () => {
+  assert.match(PROXY_SCRIPT_SOURCE, /const TARGET_HOSTS = \["127\.0\.0\.1", "::1"\];/);
+  assert.match(PROXY_SCRIPT_SOURCE, /ECONNREFUSED|EHOSTUNREACH/);
+  // Both the HTTP path and the websocket upgrade path must go through the
+  // fallback-capable connector, never a hardcoded single-family dial.
+  const connectorUses = PROXY_SCRIPT_SOURCE.match(/connectToTarget\(target\.webPort/g) ?? [];
+  assert.equal(connectorUses.length, 2, "HTTP and upgrade paths must both use connectToTarget");
+  assert.ok(
+    !PROXY_SCRIPT_SOURCE.includes('net.connect(target.webPort, "127.0.0.1"'),
+    "no single-family direct dial to the target may remain",
+  );
+});
+
 test("connection guard (mocked socket): destroys a non-loopback peer and leaves a loopback peer alone", () => {
   // The exact wiring the runtime installs on "connection" (asserted to exist
   // in the script source above), exercised against mocked socket objects so
@@ -166,20 +179,28 @@ test("proxy runtime script (real process, high port): routes a Host-header reque
   const scriptPath = join(dir, "proxy.mjs");
   const registryPath = join(dir, "installs.json");
   const root = join(dir, "brain");
+  const v6Root = join(dir, "v6-brain");
   const PROXY_PORT = 58910;
   const BACKEND_PORT = 58911;
+  const V6_BACKEND_PORT = 58912;
 
   mkdirSync(root, { recursive: true });
+  mkdirSync(v6Root, { recursive: true });
   writeFileSync(scriptPath, PROXY_SCRIPT_SOURCE);
   writeFileSync(
     registryPath,
     JSON.stringify([
       { name: "Test Brain", slug: "test-brain", root, createdAt: "2026-01-01T00:00:00.000Z" },
+      { name: "V6 Brain", slug: "v6-brain", root: v6Root, createdAt: "2026-01-01T00:00:00.000Z" },
     ]),
   );
   writeFileSync(
     join(root, "config.json"),
     JSON.stringify({ version: 1, webPort: BACKEND_PORT, vaultPort: BACKEND_PORT + 1 }),
+  );
+  writeFileSync(
+    join(v6Root, "config.json"),
+    JSON.stringify({ version: 1, webPort: V6_BACKEND_PORT, vaultPort: V6_BACKEND_PORT + 10 }),
   );
 
   const backend = createServer((req, res) => {
@@ -187,6 +208,15 @@ test("proxy runtime script (real process, high port): routes a Host-header reque
     res.end(`stub-backend-response:${req.url}:${req.headers.host}`);
   });
   await new Promise<void>((resolve) => backend.listen(BACKEND_PORT, "127.0.0.1", resolve));
+
+  // Second stub bound to ::1 ONLY — the exact field shape that broke:
+  // vite preview was found listening on [::1]:<port> with no IPv4 socket,
+  // so a proxy that only ever dials 127.0.0.1 gets ECONNREFUSED.
+  const v6Backend = createServer((req, res) => {
+    res.writeHead(200, { "Content-Type": "text/plain" });
+    res.end(`v6-only-backend-response:${req.url}`);
+  });
+  await new Promise<void>((resolve) => v6Backend.listen(V6_BACKEND_PORT, "::1", resolve));
 
   const child = spawn(process.execPath, [scriptPath], {
     env: {
@@ -226,6 +256,15 @@ test("proxy runtime script (real process, high port): routes a Host-header reque
     assert.equal(res.status, 200);
     assert.equal(body, `stub-backend-response:/hello:test-brain.localhost:${PROXY_PORT}`);
 
+    // Dual-family fallback (field-bug regression): the v6-brain backend
+    // listens on ::1 ONLY. The proxy must fail its 127.0.0.1 attempt with
+    // ECONNREFUSED, retry ::1, and still deliver the proxied response —
+    // not the bad-gateway page.
+    const v6Res = await fetch(`http://v6-brain.localhost:${PROXY_PORT}/v6check`);
+    const v6Body = await v6Res.text();
+    assert.equal(v6Res.status, 200);
+    assert.equal(v6Body, "v6-only-backend-response:/v6check");
+
     // Unknown host -> the fallback index page, not a proxied response.
     const indexRes = await fetch(`http://nope.localhost:${PROXY_PORT}/`);
     const indexBody = await indexRes.text();
@@ -247,8 +286,14 @@ test("proxy runtime script (real process, high port): routes a Host-header reque
       );
     }
   } finally {
+    // Wait for the child to actually exit, not just receive the signal —
+    // otherwise a back-to-back test run can spawn its proxy while this one
+    // still holds the fixed port, EADDRINUSE, and flake on startup timeout.
+    const exited = new Promise((resolve) => child.once("exit", resolve));
     child.kill();
+    await exited;
     await new Promise((resolve) => backend.close(resolve));
+    await new Promise((resolve) => v6Backend.close(resolve));
     rmSync(dir, { recursive: true, force: true });
   }
 });

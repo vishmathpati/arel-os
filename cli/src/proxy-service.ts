@@ -165,6 +165,39 @@ function isLoopbackAddress(remoteAddress) {
 
 const PORT = Number(process.env.ARELOS_PROXY_PORT || 80);
 
+// Dual-family loopback connect (field bug): backends may bind EITHER
+// loopback family — vite preview was found bound to [::1] ONLY on a live
+// install (lsof-confirmed), while other servers bind 127.0.0.1. Try IPv4
+// loopback first; on a connect-refused/unreachable failure, retry IPv6
+// loopback before giving up. The connection is fully established BEFORE any
+// request body is piped upstream, so the fallback never has to replay bytes.
+const TARGET_HOSTS = ["127.0.0.1", "::1"];
+
+function isRetryableConnectError(code) {
+  return code === "ECONNREFUSED" || code === "EHOSTUNREACH";
+}
+
+function connectToTarget(port, done) {
+  function attempt(idx) {
+    const socket = net.connect({ port, host: TARGET_HOSTS[idx] });
+    socket.once("connect", () => {
+      // Drop the probe-phase error listener so any later socket error is
+      // handled solely by whoever we hand the connected socket to.
+      socket.removeAllListeners("error");
+      done(null, socket);
+    });
+    socket.once("error", (err) => {
+      socket.destroy();
+      if (isRetryableConnectError(err && err.code) && idx + 1 < TARGET_HOSTS.length) {
+        attempt(idx + 1);
+      } else {
+        done(err);
+      }
+    });
+  }
+  attempt(0);
+}
+
 const server = http.createServer((req, res) => {
   // Redundant with the connection-level guard below, kept as defense in
   // depth (e.g. a socket whose peer address only resolves post-handshake).
@@ -181,24 +214,35 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  const proxyReq = http.request(
-    {
-      hostname: "127.0.0.1",
-      port: target.webPort,
-      path: req.url,
-      method: req.method,
-      headers: req.headers,
-    },
-    (proxyRes) => {
-      res.writeHead(proxyRes.statusCode || 502, proxyRes.headers);
-      proxyRes.pipe(res);
-    },
-  );
-  proxyReq.on("error", () => {
+  function badGateway() {
+    if (res.headersSent) {
+      res.destroy();
+      return;
+    }
     res.writeHead(502, { "Content-Type": "text/plain" });
     res.end("Bad gateway: " + target.name + " is not responding on port " + target.webPort);
+  }
+
+  connectToTarget(target.webPort, (err, upstreamSocket) => {
+    if (err) {
+      badGateway();
+      return;
+    }
+    const proxyReq = http.request(
+      {
+        createConnection: () => upstreamSocket,
+        path: req.url,
+        method: req.method,
+        headers: req.headers,
+      },
+      (proxyRes) => {
+        res.writeHead(proxyRes.statusCode || 502, proxyRes.headers);
+        proxyRes.pipe(res);
+      },
+    );
+    proxyReq.on("error", badGateway);
+    req.pipe(proxyReq);
   });
-  req.pipe(proxyReq);
 });
 
 // Best-effort WebSocket proxying (upgrade requests) — a plain TCP pipe to the
@@ -217,7 +261,12 @@ server.on("upgrade", (req, clientSocket, head) => {
     clientSocket.destroy();
     return;
   }
-  const upstream = net.connect(target.webPort, "127.0.0.1", () => {
+  // Same dual-family fallback as the HTTP path — see connectToTarget above.
+  connectToTarget(target.webPort, (err, upstream) => {
+    if (err) {
+      clientSocket.destroy();
+      return;
+    }
     upstream.write(
       \`\${req.method} \${req.url} HTTP/1.1\\r\\n\` +
         Object.entries(req.headers)
@@ -228,8 +277,9 @@ server.on("upgrade", (req, clientSocket, head) => {
     if (head && head.length) upstream.write(head);
     upstream.pipe(clientSocket);
     clientSocket.pipe(upstream);
+    upstream.on("error", () => clientSocket.destroy());
+    clientSocket.on("error", () => upstream.destroy());
   });
-  upstream.on("error", () => clientSocket.destroy());
 });
 
 // Primary guard: kill non-loopback connections the moment they arrive,
