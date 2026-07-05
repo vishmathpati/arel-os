@@ -3,12 +3,14 @@
  * `AI_GATEWAY_API_KEY` via the new `POST /vault/env` (allowlisted, fixed-path,
  * no-echo — see server/env.ts + server/index.ts) then runs a genuinely
  * authenticated validation probe (`GET /vault/env/validate`, a minimal real
- * completion — see server/engine/health.ts). The result is one of three
- * honest states: `ok` (key works), `invalid-key` (key was rejected), or
- * `unreachable` (couldn't tell — network/service issue, not necessarily a bad
- * key) — rendered distinctly so onboarding never claims a fake key "works".
- * The password field is cleared immediately after submit regardless of
- * outcome — the value only ever lives in this component's state for the
+ * completion — see server/engine/health.ts). The result is one of several
+ * honest states: `ok` (key works), `invalid-key` (key was rejected),
+ * `model-error`/`rate-limited`/`no-credit` (key is fine, something else is
+ * wrong), or `unreachable` (couldn't tell — network/service issue, not
+ * necessarily a bad key) — rendered distinctly so onboarding never claims a
+ * fake key "works" or blames the key for a problem that isn't the key's
+ * fault. The password field is cleared immediately after submit regardless
+ * of outcome — the value only ever lives in this component's state for the
  * instant it takes to POST it.
  */
 
@@ -23,6 +25,9 @@ type Validation = GatewayKeyValidation | { status: "error"; detail: string } | n
 const VALIDATION_STYLES: Record<string, string> = {
   ok: "border-border bg-muted/40 text-foreground",
   "invalid-key": "border-error/30 bg-error/5 text-error",
+  "model-error": "border-warning/30 bg-warning/5 text-warning",
+  "rate-limited": "border-warning/30 bg-warning/5 text-warning",
+  "no-credit": "border-warning/30 bg-warning/5 text-warning",
   unreachable: "border-warning/30 bg-warning/5 text-warning",
   error: "border-error/30 bg-error/5 text-error",
 };
@@ -30,9 +35,19 @@ const VALIDATION_STYLES: Record<string, string> = {
 const VALIDATION_ICON: Record<string, string> = {
   ok: "✅ ",
   "invalid-key": "❌ ",
+  "model-error": "⚠️ ",
+  "rate-limited": "⚠️ ",
+  "no-credit": "⚠️ ",
   unreachable: "⚠️ ",
   error: "❌ ",
 };
+
+// Key-gate states (model-error, rate-limited, no-credit) mean the key itself
+// is fine — the onboarding gate only needs to know "is the key good", so
+// these count as accepted/validated the same as "ok" for the purposes of
+// letting the user continue (the Engine/Recipes UI surfaces the finer detail
+// later, e.g. per-recipe health checks).
+const KEY_IS_GOOD = new Set(["ok", "model-error", "rate-limited", "no-credit"]);
 
 export function StepGateAi({
   onNext,
@@ -127,8 +142,13 @@ export function StepGateAi({
 
       <div className="flex items-center gap-3 pt-2">
         <Button
-          variant={validation?.status === "ok" ? "default" : "outline"}
-          onClick={() => onNext({ accepted: true, validated: validation?.status === "ok" })}
+          variant={validation && KEY_IS_GOOD.has(validation.status) ? "default" : "outline"}
+          onClick={() =>
+            onNext({
+              accepted: true,
+              validated: !!validation && KEY_IS_GOOD.has(validation.status),
+            })
+          }
           disabled={!saved}
         >
           Nice — continue →

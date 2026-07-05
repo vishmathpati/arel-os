@@ -168,10 +168,26 @@ async function checkModel(slug: string): Promise<DependencyHealth> {
   }
 }
 
-/** Onboarding AI-key gate validation result — three honest, distinct states (no fake positives). */
+/**
+ * Onboarding/settings AI-key gate validation result — honest, distinct states
+ * (no fake positives). Beyond the original ok/invalid-key/unreachable:
+ *   - "model-error" — the key is fine, but the *model* is unusable (not found,
+ *     or the account/plan can't run it). Reported separately from "invalid-key"
+ *     so the UI never tells someone their key is bad when it's the model slug
+ *     that's wrong.
+ *   - "rate-limited" — the key is fine, the gateway is just throttling us
+ *     right now (429). Distinct from "unreachable" so the user knows to wait,
+ *     not to re-check their key or network.
+ *   - "no-credit" — the key is fine, but the gateway account has no spend
+ *     available (402). Distinct so the user knows to add credit, not to
+ *     re-paste the key.
+ */
 export type GatewayKeyValidation =
   | { status: "ok"; detail: string }
   | { status: "invalid-key"; detail: string }
+  | { status: "model-error"; detail: string }
+  | { status: "rate-limited"; detail: string }
+  | { status: "no-credit"; detail: string }
   | { status: "unreachable"; detail: string };
 
 /**
@@ -182,9 +198,16 @@ export type GatewayKeyValidation =
  * `gateway.getAvailableModels()` (used by `checkModel` above) is NOT sufficient
  * here — it succeeds even with a completely fake key (it just lists the public
  * catalog, which requires no auth). This probe instead runs a minimal real
- * completion (`generateText`, 1-word prompt, `maxOutputTokens: 8`) through the
+ * completion (`generateText`, 1-word prompt, `maxOutputTokens: 16`) through the
  * same Vercel AI Gateway client the Engine uses (see engine.ts) against the
  * configured default model — the cheapest call that actually exercises auth.
+ *
+ * `maxOutputTokens` MUST be >= 16: confirmed live that the gateway rejects
+ * `maxOutputTokens: 8` with a 400 "integer below minimum value" error before
+ * the model ever runs — that 400 has nothing to do with the key, but with the
+ * old classifier it fell through to a misleading "unreachable" result on every
+ * single validation, even with a perfectly good key (the exact bug reported:
+ * "added the key but it shows an error"). 16 is the gateway's enforced floor.
  *
  * Errors are classified, not lumped together. Confirmed live against a fake
  * key: the `ai` package's gateway wrapper (`wrapGatewayError` in
@@ -196,6 +219,11 @@ export type GatewayKeyValidation =
  * a future SDK version or a direct-provider route surfaces 401/403 differently.
  *   - name/message matching an auth failure, a 401/403 statusCode, or a
  *     missing-key load error → "invalid-key" — the key itself is bad.
+ *   - a model-not-found error, or a 400 whose message names the model
+ *     → "model-error" — the key is fine, the model slug isn't usable.
+ *   - a 402 (no credit) → "no-credit" — the key is fine, the account is out
+ *     of funds.
+ *   - a 429 (rate limited) → "rate-limited" — the key is fine, try again soon.
  *   - anything else (network, timeout, 5xx, unknown) → "unreachable" — we
  *     couldn't tell either way, so we don't accuse the key of being wrong.
  */
@@ -218,7 +246,7 @@ export async function validateGatewayKey(): Promise<GatewayKeyValidation> {
     await generateText({
       model,
       prompt: "hi",
-      maxOutputTokens: 8,
+      maxOutputTokens: 16,
     });
     return { status: "ok", detail: "Your key works — recipes can run." };
   } catch (err) {
@@ -228,6 +256,25 @@ export async function validateGatewayKey(): Promise<GatewayKeyValidation> {
         detail: "That key was rejected — double-check it and try again.",
       };
     }
+    if (isModelError(err)) {
+      return {
+        status: "model-error",
+        detail: `Your key works, but the configured model ("${model}") isn't usable right now — pick a different model.`,
+      };
+    }
+    if (isNoCreditError(err)) {
+      return {
+        status: "no-credit",
+        detail: "Your key works, but the account has no credit left — add funds to run recipes.",
+      };
+    }
+    if (isRateLimitError(err)) {
+      return {
+        status: "rate-limited",
+        detail:
+          "Your key works, but the AI service is rate-limiting requests right now — try again shortly.",
+      };
+    }
     return {
       status: "unreachable",
       detail: "Couldn't reach the AI service to test the key. Check your connection and try again.",
@@ -235,11 +282,15 @@ export async function validateGatewayKey(): Promise<GatewayKeyValidation> {
   }
 }
 
+function gatewayStatusCode(err: unknown): number | undefined {
+  if (GatewayError.isInstance(err)) return err.statusCode;
+  if (APICallError.isInstance(err)) return err.statusCode;
+  return undefined;
+}
+
 /** True when `err` represents an authentication failure — a rejected/missing key. */
 function isInvalidKeyError(err: unknown): boolean {
-  let statusCode: number | undefined;
-  if (GatewayError.isInstance(err)) statusCode = err.statusCode;
-  else if (APICallError.isInstance(err)) statusCode = err.statusCode;
+  const statusCode = gatewayStatusCode(err);
   if (statusCode === 401 || statusCode === 403) return true;
 
   if (!(err instanceof Error)) return false;
@@ -249,6 +300,36 @@ function isInvalidKeyError(err: unknown): boolean {
   if (err.name === "GatewayAuthenticationError" || err.name === "AI_LoadAPIKeyError") return true;
   if (err.name === "GatewayError" && /unauthenticat/i.test(err.message)) return true;
   return false;
+}
+
+/**
+ * True when the gateway rejected the *model*, not the key — e.g.
+ * `GatewayModelNotFoundError`, or an `invalid_request_error`/generic 400 whose
+ * message is about the model/request shape rather than auth. Deliberately
+ * narrow: only matches known model/request-shape language, so an unrelated
+ * 400 doesn't get miscast as "model-error" instead of "unreachable".
+ */
+function isModelError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  if (err.name === "GatewayModelNotFoundError") return true;
+  if (err.name === "GatewayInvalidRequestError" || err.name === "GatewayInternalServerError") {
+    return /model|max_output_tokens|max_tokens|context.?window|not found/i.test(err.message);
+  }
+  return false;
+}
+
+/** True on a 402 — the key is valid but the gateway account has no spend available. */
+function isNoCreditError(err: unknown): boolean {
+  if (gatewayStatusCode(err) === 402) return true;
+  return (
+    err instanceof Error && /insufficient credit|out of credit|payment required/i.test(err.message)
+  );
+}
+
+/** True on a 429 — the key is valid but the gateway is throttling this account. */
+function isRateLimitError(err: unknown): boolean {
+  if (gatewayStatusCode(err) === 429) return true;
+  return err instanceof Error && err.name === "GatewayRateLimitError";
 }
 
 /** Currency rates (web-fetch): is the exchange-rate service reachable? */

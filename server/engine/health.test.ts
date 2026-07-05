@@ -117,4 +117,72 @@ describe("validateGatewayKey", () => {
     const result = await validateGatewayKey();
     expect(result.status).toBe("invalid-key");
   });
+
+  // Regression test for the live bug: a fully valid key was reported as
+  // "unreachable" because the old probe asked for `maxOutputTokens: 8`, which
+  // the gateway rejects with a 400 "below minimum value" error before the key
+  // is ever checked. Confirmed live against the real gateway with a real key.
+  it("classifies the real gateway 400 'max_output_tokens below minimum' error as 'model-error', not 'unreachable'", async () => {
+    const err = Object.assign(
+      new Error(
+        "Invalid 'max_output_tokens': integer below minimum value. Expected a value >= 16, but got 8 instead.",
+      ),
+      { name: "GatewayInternalServerError", statusCode: 400 },
+    );
+    mockGenerateText.mockRejectedValue(err);
+    const result = await validateGatewayKey();
+    expect(result.status).toBe("model-error");
+  });
+
+  it("classifies a GatewayModelNotFoundError as 'model-error'", async () => {
+    const err = Object.assign(new Error("Model not found: bogus/model"), {
+      name: "GatewayModelNotFoundError",
+    });
+    mockGenerateText.mockRejectedValue(err);
+    const result = await validateGatewayKey();
+    expect(result.status).toBe("model-error");
+  });
+
+  it("classifies a 402 APICallError as 'no-credit'", async () => {
+    mockGenerateText.mockRejectedValue(
+      new APICallError({
+        message: "Payment required",
+        url: "https://gateway.example/v1",
+        requestBodyValues: {},
+        statusCode: 402,
+      }),
+    );
+    const result = await validateGatewayKey();
+    expect(result.status).toBe("no-credit");
+  });
+
+  it("classifies a 429 APICallError as 'rate-limited'", async () => {
+    mockGenerateText.mockRejectedValue(
+      new APICallError({
+        message: "Too many requests",
+        url: "https://gateway.example/v1",
+        requestBodyValues: {},
+        statusCode: 429,
+      }),
+    );
+    const result = await validateGatewayKey();
+    expect(result.status).toBe("rate-limited");
+  });
+
+  it("classifies a GatewayRateLimitError (no statusCode) as 'rate-limited'", async () => {
+    const err = Object.assign(new Error("Rate limit exceeded"), { name: "GatewayRateLimitError" });
+    mockGenerateText.mockRejectedValue(err);
+    const result = await validateGatewayKey();
+    expect(result.status).toBe("rate-limited");
+  });
+
+  it("still classifies an unrelated 400 with no model/rate/credit language as 'unreachable'", async () => {
+    const err = Object.assign(new Error("Something went wrong upstream"), {
+      name: "GatewayInternalServerError",
+      statusCode: 400,
+    });
+    mockGenerateText.mockRejectedValue(err);
+    const result = await validateGatewayKey();
+    expect(result.status).toBe("unreachable");
+  });
 });

@@ -12,7 +12,7 @@
  *   POST /vault/write   { path, frontmatter, body } → { path, frontmatter }
  *   POST /vault/delete  { path }       → { archivedPath, deleted_from }
  *   POST /vault/env     { keys: { KEY: value } } → { ok, keysSet }  (onboarding AI gate, §5)
- *   GET  /vault/env/validate            → { status: ok|invalid-key|unreachable, detail }
+ *   GET  /vault/env/validate            → { status: ok|invalid-key|model-error|rate-limited|no-credit|unreachable, detail }
  *                                          (real generateText probe — see engine/health.ts)
  *
  * Arel Clipper ingest (Ch17 — the receiving end for the Chrome extension):
