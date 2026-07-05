@@ -12,7 +12,7 @@ import { VAULT_LABEL, WEB_LABEL } from "./paths.js";
 export async function statusCommand(): Promise<number> {
   const config = readConfig();
   if (!config) {
-    console.error("No Arel OS install found. Run `npx rlo` to install.");
+    console.error("No Arel OS install found. Run `npx arelos` to install.");
     return 1;
   }
 
@@ -41,7 +41,7 @@ export async function statusCommand(): Promise<number> {
   );
 
   console.log("");
-  console.log(`  Revision: ${rev ?? "unknown"}${behind === true ? pc.yellow(" (behind origin — run rlo update)") : behind === false ? " (up to date)" : ""}`);
+  console.log(`  Revision: ${rev ?? "unknown"}${behind === true ? pc.yellow(" (behind origin — run arelos update)") : behind === false ? " (up to date)" : ""}`);
 
   return 0;
 }

@@ -1,9 +1,10 @@
 {
-  "name": "rlo",
+  "name": "arelos",
   "version": "0.1.0",
   "description": "Installer and service manager for a self-hosted Arel OS on macOS.",
   "type": "module",
   "bin": {
+    "arelos": "dist/cli.js",
     "rlo": "dist/cli.js"
   },
   "files": [

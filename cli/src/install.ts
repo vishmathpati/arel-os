@@ -175,7 +175,7 @@ export async function runInstall(argv: string[], flags: InstallFlags): Promise<n
     healthSpin.stop("Health check timed out.");
     console.error(
       pc.red(
-        `App did not come up in time. Check logs:\n  rlo logs\n  ${join(installDir, "logs/service/web.log")}\n  ${join(installDir, "logs/service/vault.log")}`,
+        `App did not come up in time. Check logs:\n  arelos logs\n  ${join(installDir, "logs/service/web.log")}\n  ${join(installDir, "logs/service/vault.log")}`,
       ),
     );
     return 1;
@@ -195,7 +195,7 @@ export async function runInstall(argv: string[], flags: InstallFlags): Promise<n
     [
       pc.green(`Arel OS is running at ${url}`),
       "Runs 24/7 in the background.",
-      "Next: rlo status · rlo logs · rlo update · rlo uninstall",
+      "Next: arelos status · arelos logs · arelos update · arelos uninstall",
     ].join("\n"),
   );
   return 0;

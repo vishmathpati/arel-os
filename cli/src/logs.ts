@@ -21,7 +21,7 @@ export function lastLines(filePath: string, n: number): string {
 export async function logsCommand(flags: LogsFlags): Promise<number> {
   const config = readConfig();
   if (!config) {
-    console.error("No Arel OS install found. Run `npx rlo` to install.");
+    console.error("No Arel OS install found. Run `npx arelos` to install.");
     return 1;
   }
 

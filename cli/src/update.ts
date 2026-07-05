@@ -14,7 +14,7 @@ import { bootstrapAndStart, installServiceFiles } from "./services.js";
 export async function updateCommand(): Promise<number> {
   const config = readConfig();
   if (!config) {
-    console.error("No Arel OS install found. Run `npx rlo` to install.");
+    console.error("No Arel OS install found. Run `npx arelos` to install.");
     return 1;
   }
   return runUpdate(config);
@@ -61,7 +61,7 @@ export async function runUpdate(config: ArelConfig): Promise<number> {
   console.log("Restarting services and re-checking health…");
   const health = await waitForHealthy(config.webPort, config.vaultPort);
   if (!health.healthy) {
-    console.error(pc.red("Health check timed out after update. Run `rlo logs`."));
+    console.error(pc.red("Health check timed out after update. Run `arelos logs`."));
     return 1;
   }
   console.log(pc.green("Update complete. Arel OS is healthy."));

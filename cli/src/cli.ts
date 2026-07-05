@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * rlo — the Arel OS installer/service manager. `npx rlo` with no subcommand
+ * arelos — the Arel OS installer/service manager. `npx arelos` with no subcommand
  * runs the interactive install flow (rlo-cli-spec.md §1).
  */
 if (process.platform !== "darwin") {
@@ -23,7 +23,7 @@ async function main(): Promise<number> {
     return 0;
   }
 
-  // No subcommand given, or the first token is a flag (e.g. `rlo --yes ...`)
+  // No subcommand given, or the first token is a flag (e.g. `arelos --yes ...`)
   // rather than a subcommand name — both mean "install". Anything else in
   // the known set consumes its name as the subcommand; everything after it
   // is passed through as that subcommand's own args.
@@ -60,14 +60,14 @@ async function main(): Promise<number> {
 }
 
 function printHelp(): void {
-  console.log(`rlo — install and manage a self-hosted Arel OS
+  console.log(`arelos — install and manage a self-hosted Arel OS
 
 Usage:
-  npx rlo                 Install (interactive)
-  rlo status               Show install + service status
-  rlo update                git pull + rebuild + restart
-  rlo uninstall             Stop services, optionally remove install dir / vault
-  rlo logs [web|vault]      Tail service logs (-f to follow, -n <N> for line count)
+  npx arelos              Install (interactive)
+  arelos status            Show install + service status
+  arelos update             git pull + rebuild + restart
+  arelos uninstall          Stop services, optionally remove install dir / vault
+  arelos logs [web|vault]   Tail service logs (-f to follow, -n <N> for line count)
 
 Install flags (non-interactive):
   --yes, --defaults        Skip prompts, use defaults/flags below

@@ -1,6 +1,6 @@
 /**
  * Existing-install repair/update menu (spec §1 Step 0, §3.1). Shown whenever
- * ~/.arelos/config.json already exists so a re-run of `npx rlo` never
+ * ~/.arelos/config.json already exists so a re-run of `npx arelos` never
  * silently reinstalls.
  */
 import * as p from "@clack/prompts";
@@ -49,8 +49,8 @@ export async function runRepairMenu(existing: ArelConfig): Promise<number> {
 
   if (choice === "reinstall") {
     p.log.message(
-      "Reinstall elsewhere is not automatic yet — run `rlo uninstall` first if you want to reuse this " +
-        "install dir/ports, or re-run `npx rlo --install-dir <new path> --web-port <n> --vault-port <n>` " +
+      "Reinstall elsewhere is not automatic yet — run `arelos uninstall` first if you want to reuse this " +
+        "install dir/ports, or re-run `npx arelos --install-dir <new path> --web-port <n> --vault-port <n>` " +
         "for a side-by-side install with a different ARELOS_CONFIG_PATH.",
     );
     return 0;
@@ -90,6 +90,6 @@ async function runRepair(existing: ArelConfig): Promise<number> {
 
   s.start("Health check…");
   const health = await waitForHealthy(existing.webPort, existing.vaultPort);
-  s.stop(health.healthy ? "Healthy." : "Health check timed out — see rlo logs.");
+  s.stop(health.healthy ? "Healthy." : "Health check timed out — see arelos logs.");
   return health.healthy ? 0 : 1;
 }
