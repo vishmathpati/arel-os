@@ -9,9 +9,10 @@ import {
   type Area,
   type CreateSubAreaInput,
   createSubArea,
-  ensureAreasSeeded,
   listSubAreas,
   readArea,
+  renameArea,
+  setAreaArchived,
   setAreaBody,
   setAreaDescription,
 } from "@/shared/lib/area-data";
@@ -26,8 +27,10 @@ export interface UseArea {
   notFound: boolean;
   error: string | null;
   reload: () => void;
+  saveName: (name: string) => Promise<void>;
   saveDescription: (description: string) => Promise<void>;
   saveBody: (body: string) => Promise<void>;
+  archive: (archived: boolean) => Promise<void>;
   /** Create a sub-area under the current area; reloads sub-areas on success. */
   addSubArea: (input: CreateSubAreaInput) => Promise<Area | null>;
 }
@@ -47,7 +50,6 @@ export function useArea(slug: string): UseArea {
     setError(null);
     setNotFound(false);
     (async () => {
-      await ensureAreasSeeded();
       const [a, subs] = await Promise.all([readArea(slug), listSubAreas(slug)]);
       if (!a) {
         setNotFound(true);
@@ -64,6 +66,19 @@ export function useArea(slug: string): UseArea {
 
   useEffect(() => reload(), [reload]);
 
+  const saveName = useCallback(
+    async (name: string) => {
+      const n = name.trim();
+      if (!area || !n || n === area.name) return;
+      try {
+        setArea(await renameArea(area, n));
+      } catch (err) {
+        toast.error(`Couldn't rename area: ${errMessage(err)}`);
+      }
+    },
+    [area],
+  );
+
   const saveDescription = useCallback(
     async (description: string) => {
       if (!area || description === area.description) return;
@@ -71,6 +86,19 @@ export function useArea(slug: string): UseArea {
         setArea(await setAreaDescription(area, description));
       } catch (err) {
         toast.error(`Couldn't save description: ${errMessage(err)}`);
+      }
+    },
+    [area],
+  );
+
+  const archive = useCallback(
+    async (archived: boolean) => {
+      if (!area) return;
+      try {
+        setArea(await setAreaArchived(area, archived));
+        toast.success(archived ? "Area archived" : "Area restored");
+      } catch (err) {
+        toast.error(`Couldn't ${archived ? "archive" : "restore"} area: ${errMessage(err)}`);
       }
     },
     [area],
@@ -110,8 +138,10 @@ export function useArea(slug: string): UseArea {
     notFound,
     error,
     reload,
+    saveName,
     saveDescription,
     saveBody,
+    archive,
     addSubArea,
   };
 }
