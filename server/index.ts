@@ -58,7 +58,12 @@ import {
   writeVaultFile,
 } from "./io.ts";
 
-const PORT = Number(process.env.ARELOS_VAULT_PORT) || loadConfig().vaultPort;
+// `loadConfig()` already implements the documented precedence (config.json
+// authoritative when present; ARELOS_VAULT_PORT only as a dev-fallback when the
+// file is absent — see server/config.ts). Reading process.env here directly,
+// ahead of loadConfig(), would invert that: a stray env var would win over an
+// installed config.json. Always defer to loadConfig().
+const PORT = loadConfig().vaultPort;
 
 const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
