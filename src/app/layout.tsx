@@ -2,6 +2,7 @@ import { AppSidebar } from "@/app/app-sidebar";
 import { AreasProvider } from "@/app/areas/areas-provider";
 import { InboxProvider } from "@/app/inbox/inbox-provider";
 import { PagesProvider } from "@/app/pages/pages-provider";
+import { OnboardingGate } from "@/app/welcome/onboarding-gate";
 import { SidebarInset, SidebarProvider } from "@/shared/components/ui/sidebar";
 import { Toaster } from "@/shared/components/ui/sonner";
 import { TooltipProvider } from "@/shared/components/ui/tooltip";
@@ -12,7 +13,8 @@ import { Outlet } from "react-router-dom";
  * inset via <Outlet>, supplying its own PageHeader. AreasProvider supplies the
  * user-defined Areas list; PagesProvider supplies the Pages tree + `[[`
  * wikilink index; InboxProvider supplies the inbox list, the sidebar count
- * badge, and the global ⌘N quick-capture (Ch9).
+ * badge, and the global ⌘N quick-capture (Ch9). OnboardingGate auto-redirects
+ * a fresh/in-progress vault to `/welcome` (the onboarding wizard, D-onboarding).
  */
 export function Layout() {
   return (
@@ -21,10 +23,12 @@ export function Layout() {
         <AreasProvider>
           <PagesProvider>
             <InboxProvider>
-              <AppSidebar />
-              <SidebarInset className="h-svh overflow-hidden">
-                <Outlet />
-              </SidebarInset>
+              <OnboardingGate>
+                <AppSidebar />
+                <SidebarInset className="h-svh overflow-hidden">
+                  <Outlet />
+                </SidebarInset>
+              </OnboardingGate>
             </InboxProvider>
           </PagesProvider>
         </AreasProvider>
