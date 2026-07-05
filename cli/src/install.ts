@@ -11,28 +11,35 @@ import type { InstallFlags } from "./cli-args.js";
 import { readConfigAt, writeConfig } from "./config.js";
 import { runStreaming } from "./exec.js";
 import { formatHealthTimeoutDiagnostics, waitForHealthy } from "./health.js";
-import { lastLines, logPathFor } from "./logs.js";
 import {
+  DEFAULTS,
+  type InstallAnswers,
+  TCC_PROTECTED_PATH_MESSAGE,
   appDirFor,
   checkRootDir,
-  DEFAULTS,
   defaultParentDir,
   normalizeDisplayName,
   resolvePort,
   rootFor,
   slugOrFallback,
-  TCC_PROTECTED_PATH_MESSAGE,
   toArelConfig,
   vaultPathFor,
-  type InstallAnswers,
 } from "./install-plan.js";
-import { bootstrapAndStart, installServiceFiles } from "./services.js";
-import { cloneRepo, isGitCheckout } from "./repo.js";
-import { ensureEnvFile, ensureLogsDir, scaffoldVault, TemplateVaultMissingError } from "./scaffold.js";
-import { runRepairMenu } from "./repair.js";
-import { installConfigPath, isTccProtectedPath } from "./paths.js";
 import { listLoadedArelosLabels } from "./launchd.js";
+import { lastLines, logPathFor } from "./logs.js";
+import { installConfigPath, isTccProtectedPath } from "./paths.js";
+import { canBindPort80, installProxyService } from "./proxy-service.js";
+import { domainFor } from "./proxy.js";
 import { addRegistryEntry } from "./registry.js";
+import { runRepairMenu } from "./repair.js";
+import { cloneRepo, isGitCheckout } from "./repo.js";
+import {
+  TemplateVaultMissingError,
+  ensureEnvFile,
+  ensureLogsDir,
+  scaffoldVault,
+} from "./scaffold.js";
+import { bootstrapAndStart, installServiceFiles } from "./services.js";
 
 export async function runInstall(argv: string[], flags: InstallFlags): Promise<number> {
   // Step 0 — Preflight & existing-install detection.
@@ -156,7 +163,10 @@ export async function runInstall(argv: string[], flags: InstallFlags): Promise<n
   // Logs live at the self-contained root, not inside the app checkout.
   ensureLogsDir(answers.root);
   const envResult = ensureEnvFile(installDir);
-  log(flags.yes, envResult.created ? "Wrote .env from .env.example." : ".env already present; left untouched.");
+  log(
+    flags.yes,
+    envResult.created ? "Wrote .env from .env.example." : ".env already present; left untouched.",
+  );
 
   // Step 10 — Write per-install config to <root>/config.json + register.
   const config = toArelConfig(answers);
@@ -216,24 +226,53 @@ export async function runInstall(argv: string[], flags: InstallFlags): Promise<n
   const health = await waitForHealthy(config.webPort, config.vaultPort);
   if (!health.healthy) {
     healthSpin.stop("Health check timed out.");
-    console.error(pc.red(formatHealthTimeoutDiagnostics(config.root, (p) => lastLines(p, 10), logPathFor)));
+    console.error(
+      pc.red(formatHealthTimeoutDiagnostics(config.root, (p) => lastLines(p, 10), logPathFor)),
+    );
     console.error(pc.dim("\nFull logs: arelos logs"));
     return 1;
   }
   healthSpin.stop("App is up.");
 
+  // Step 12.5 — Localhost domain (0.2.3): give this (and every) install a
+  // http://<slug>.localhost address via the one shared proxy service, but
+  // only when port 80 is actually available on this Mac — never fight
+  // something else for it (checked fresh, never assumed; see proxy-service.ts).
+  const slug = slugOrFallback(answers.displayName);
+  let domainLine: string | null = null;
+  if (!flags.noService) {
+    const canBind = await canBindPort80();
+    if (canBind) {
+      const proxyResult = await installProxyService(installDir);
+      if (proxyResult.ok) {
+        domainLine = `${answers.displayName} is running at http://${domainFor(slug)} (also http://localhost:${config.webPort})`;
+      } else {
+        log(
+          flags.yes,
+          `Note: could not start the shared localhost-domain proxy (${proxyResult.error}). Using the port URL below instead.`,
+        );
+      }
+    } else {
+      log(
+        flags.yes,
+        "Note: port 80 is in use by something else on this Mac — skipping the http://<name>.localhost shortcut; the port URL below still works.",
+      );
+    }
+  }
+
   // Step 13 — Open browser.
   const url = `http://localhost:${config.webPort}`;
+  const openUrl = domainLine ? `http://${domainFor(slug)}` : url;
   if (!flags.yes) {
     try {
-      await runStreaming("open", [url]);
+      await runStreaming("open", [openUrl]);
     } catch {
       // best-effort
     }
   }
   p.outro(
     [
-      pc.green(`${answers.displayName} is running at ${url}`),
+      pc.green(domainLine ?? `${answers.displayName} is running at ${url}`),
       "Runs 24/7 in the background.",
       "Next: arelos status · arelos logs · arelos update · arelos uninstall",
     ].join("\n"),
@@ -255,12 +294,18 @@ async function collectAnswers(flags: InstallFlags): Promise<InstallAnswers | nul
     const displayName = normalizeDisplayName(flags.displayName ?? DEFAULTS.displayName);
     const root = flags.root ?? rootFor(flags.parentDir ?? defaultParentDir(), displayName);
     if (isTccProtectedPath(root)) {
-      console.error(pc.red(`Install location ${root} is not safe to use: ${TCC_PROTECTED_PATH_MESSAGE}`));
+      console.error(
+        pc.red(`Install location ${root} is not safe to use: ${TCC_PROTECTED_PATH_MESSAGE}`),
+      );
       return null;
     }
     const check = checkRootDir(root);
     if (check.nonEmpty && !check.isPriorArelosInstall) {
-      console.error(pc.red(`${check.path} already has files in it and isn't a prior Arel OS install — choose a different name or location.`));
+      console.error(
+        pc.red(
+          `${check.path} already has files in it and isn't a prior Arel OS install — choose a different name or location.`,
+        ),
+      );
       return null;
     }
     const installDir = appDirFor(root);
@@ -268,7 +313,9 @@ async function collectAnswers(flags: InstallFlags): Promise<InstallAnswers | nul
     const webPortReq = flags.webPort ?? DEFAULTS.webPort;
     const vaultPortReq = flags.vaultPort ?? DEFAULTS.vaultPort;
     const web = await resolvePort(webPortReq);
-    const vault = await resolvePort(vaultPortReq === web.resolved ? vaultPortReq + 1 : vaultPortReq);
+    const vault = await resolvePort(
+      vaultPortReq === web.resolved ? vaultPortReq + 1 : vaultPortReq,
+    );
     return {
       displayName,
       root,
@@ -289,7 +336,9 @@ async function collectAnswers(flags: InstallFlags): Promise<InstallAnswers | nul
   const displayName = normalizeDisplayName(String(displayNameRaw));
   const slug = slugOrFallback(displayName);
 
-  p.log.message(`We'll create everything in ~/${slug} — the app, your vault, and logs all live inside this one folder.`);
+  p.log.message(
+    `We'll create everything in ~/${slug} — the app, your vault, and logs all live inside this one folder.`,
+  );
 
   // Step 3 — Change location? (default No — we always create <parent>/<slug>, never install loose.)
   let parentDir = defaultParentDir();
@@ -310,7 +359,9 @@ async function collectAnswers(flags: InstallFlags): Promise<InstallAnswers | nul
     const candidateRoot = rootFor(parentDir, displayName);
     const check = checkRootDir(candidateRoot);
     if (check.isTccProtected) {
-      p.log.error(`${TCC_PROTECTED_PATH_MESSAGE} (suggested: ${rootFor(defaultParentDir(), displayName)})`);
+      p.log.error(
+        `${TCC_PROTECTED_PATH_MESSAGE} (suggested: ${rootFor(defaultParentDir(), displayName)})`,
+      );
       const raw = await p.text({
         message: "Parent folder to install into:",
         placeholder: defaultParentDir(),
@@ -360,7 +411,10 @@ async function collectAnswers(flags: InstallFlags): Promise<InstallAnswers | nul
 }
 
 /** Re-entry point when the user picks "choose a different name" mid-flow (avoids re-asking location). */
-async function collectAnswersFromName(displayName: string, parentDir: string): Promise<InstallAnswers | null> {
+async function collectAnswersFromName(
+  displayName: string,
+  parentDir: string,
+): Promise<InstallAnswers | null> {
   for (;;) {
     const candidateRoot = rootFor(parentDir, displayName);
     const check = checkRootDir(candidateRoot);
@@ -384,7 +438,9 @@ async function finalizeAnswers(displayName: string, root: string): Promise<Insta
   const installDir = appDirFor(root);
   const vaultPath = vaultPathFor(root);
   const web = await resolvePort(DEFAULTS.webPort);
-  const vault = await resolvePort(DEFAULTS.vaultPort === web.resolved ? DEFAULTS.vaultPort + 1 : DEFAULTS.vaultPort);
+  const vault = await resolvePort(
+    DEFAULTS.vaultPort === web.resolved ? DEFAULTS.vaultPort + 1 : DEFAULTS.vaultPort,
+  );
   return {
     displayName,
     root,

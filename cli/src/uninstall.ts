@@ -12,14 +12,15 @@
  * done, since a stale registry entry pointing at a gone or kept-around
  * install is never useful).
  */
+import { existsSync, rmSync, unlinkSync } from "node:fs";
 import * as p from "@clack/prompts";
 import pc from "picocolors";
-import { existsSync, rmSync, unlinkSync } from "node:fs";
-import { resolveRoot, resolveServiceLabels } from "./config.js";
 import { resolveInstall } from "./cli-context.js";
+import { resolveRoot, resolveServiceLabels } from "./config.js";
 import { bootoutService } from "./launchd.js";
-import { plistPath, installConfigPath, legacyConfigPath } from "./paths.js";
-import { removeRegistryEntry } from "./registry.js";
+import { installConfigPath, legacyConfigPath, plistPath } from "./paths.js";
+import { isProxyRegistered, removeProxyService } from "./proxy-service.js";
+import { readRegistry, removeRegistryEntry } from "./registry.js";
 
 /**
  * Pure gate: vault is deleted iff confirmed AND the typed word is exactly
@@ -72,7 +73,8 @@ export async function uninstallCommand(name?: string | null): Promise<number> {
   });
   if (!p.isCancel(vaultConfirm) && vaultConfirm) {
     const typed = await p.text({
-      message: 'Type DELETE (all caps) to confirm permanent vault deletion, or anything else to cancel:',
+      message:
+        "Type DELETE (all caps) to confirm permanent vault deletion, or anything else to cancel:",
     });
     const typedWord = p.isCancel(typed) ? "" : String(typed);
     deleteVault = shouldDeleteVault(true, typedWord);
@@ -93,6 +95,14 @@ export async function uninstallCommand(name?: string | null): Promise<number> {
   });
 
   if (root) removeRegistryEntry(root);
+
+  // If that was the last registered install (and the legacy unnamed install
+  // is also gone), the shared localhost-domain proxy (0.2.3) has nothing left
+  // to route to — stop and unregister it too.
+  if (readRegistry().length === 0 && !existsSync(legacyConfigPath()) && isProxyRegistered()) {
+    await removeProxyService();
+    p.log.success("Localhost-domain proxy stopped (no installs left).");
+  }
 
   p.outro(pc.green("Arel OS uninstalled." + (deleteVault ? "" : " Your vault was preserved.")));
   return 0;

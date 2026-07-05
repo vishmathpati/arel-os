@@ -5,11 +5,12 @@
  */
 import pc from "picocolors";
 import { ensureBun } from "./bun-setup.js";
+import { resolveInstall } from "./cli-context.js";
 import type { ArelConfig } from "./config.js";
 import { resolveRoot, resolveServiceLabels } from "./config.js";
-import { resolveInstall } from "./cli-context.js";
 import { runStreaming } from "./exec.js";
 import { waitForHealthy } from "./health.js";
+import { canBindPort80, installProxyService } from "./proxy-service.js";
 import { pullLatest } from "./repo.js";
 import { bootstrapAndStart, installServiceFiles } from "./services.js";
 
@@ -51,15 +52,28 @@ export async function runUpdate(config: ArelConfig): Promise<number> {
     console.error(pc.red("bun install failed."));
     return 1;
   }
-  const buildRes = await runStreaming(bunResult.bunBin, ["run", "build"], { cwd: config.installDir });
+  const buildRes = await runStreaming(bunResult.bunBin, ["run", "build"], {
+    cwd: config.installDir,
+  });
   if (buildRes.code !== 0) {
-    console.warn(pc.yellow("bun run build failed — keeping old dist/. The web service will keep serving it."));
+    console.warn(
+      pc.yellow("bun run build failed — keeping old dist/. The web service will keep serving it."),
+    );
   }
 
   const labels = resolveServiceLabels(config);
   installServiceFiles(config.installDir, resolveRoot(config), labels);
   const bootstrap = await bootstrapAndStart(labels);
   for (const e of bootstrap.errors) console.error(pc.yellow(e));
+
+  // Refresh the shared localhost-domain proxy too (0.2.3) — it's rewritten by
+  // whichever install runs update/repair last, so it always reflects the
+  // current CLI version. Best-effort: never fails the update.
+  if (await canBindPort80()) {
+    const proxyResult = await installProxyService(config.installDir);
+    if (!proxyResult.ok)
+      console.warn(pc.yellow(`Localhost-domain proxy refresh had a warning: ${proxyResult.error}`));
+  }
 
   console.log("Restarting services and re-checking health…");
   const health = await waitForHealthy(config.webPort, config.vaultPort);

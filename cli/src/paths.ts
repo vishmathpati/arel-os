@@ -84,6 +84,26 @@ export function plistPath(label: string): string {
   return join(launchAgentsDir(), `${label}.plist`);
 }
 
+/**
+ * The shared proxy service's launchd label. Unlike per-install web/vault
+ * labels (which derive from installDir so multiple installs never collide),
+ * there is exactly one proxy shared across every install on the Mac — it
+ * owns port 80 and routes by Host header, so a single well-known label is
+ * correct here.
+ */
+export const PROXY_LABEL = "com.arelos.proxy";
+
+/**
+ * The proxy's standalone runtime script. Lives outside any single install's
+ * root (in ~/.arelos/, alongside the registry) because it's shared
+ * infrastructure, not owned by any one install — the CLI (re)writes it on
+ * every install/update so it never depends on a specific install surviving
+ * an uninstall (see proxy-service.ts).
+ */
+export function proxyScriptPath(): string {
+  return join(configDir(), "proxy.mjs");
+}
+
 /** Expand a leading `~` to the user's home directory. */
 export function expandHome(p: string): string {
   if (p === "~") return homedir();
@@ -100,7 +120,12 @@ export function expandHome(p: string): string {
  * the *resolved* (home-expanded) path so `~/Desktop/foo` and
  * `/Users/x/Desktop/foo` are both caught.
  */
-const TCC_PROTECTED_SUFFIXES = ["Desktop", "Documents", "Downloads", "Library/Mobile Documents"] as const;
+const TCC_PROTECTED_SUFFIXES = [
+  "Desktop",
+  "Documents",
+  "Downloads",
+  "Library/Mobile Documents",
+] as const;
 
 /**
  * True if `rawPath` resolves to inside (or exactly at) one of the TCC-protected

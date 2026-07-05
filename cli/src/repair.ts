@@ -5,14 +5,15 @@
  */
 import * as p from "@clack/prompts";
 import pc from "picocolors";
+import { ensureBun } from "./bun-setup.js";
 import type { ArelConfig } from "./config.js";
 import { resolveRoot, resolveServiceLabels } from "./config.js";
-import { runUpdate } from "./update.js";
+import { runStreaming } from "./exec.js";
 import { formatHealthTimeoutDiagnostics, waitForHealthy } from "./health.js";
 import { lastLines, logPathFor } from "./logs.js";
+import { canBindPort80, installProxyService } from "./proxy-service.js";
 import { bootstrapAndStart, installServiceFiles } from "./services.js";
-import { runStreaming } from "./exec.js";
-import { ensureBun } from "./bun-setup.js";
+import { runUpdate } from "./update.js";
 
 export async function runRepairMenu(existing: ArelConfig): Promise<number> {
   p.intro(pc.bold("Existing Arel OS install detected"));
@@ -31,7 +32,11 @@ export async function runRepairMenu(existing: ArelConfig): Promise<number> {
     message: "What would you like to do?",
     options: [
       { value: "update", label: "Update", hint: "git pull + rebuild + restart" },
-      { value: "repair", label: "Repair", hint: "re-render services + rebuild, keep vault & config" },
+      {
+        value: "repair",
+        label: "Repair",
+        hint: "re-render services + rebuild, keep vault & config",
+      },
       { value: "reinstall", label: "Reinstall elsewhere", hint: "fresh install at a new location" },
       { value: "cancel", label: "Cancel" },
     ],
@@ -72,7 +77,9 @@ async function runRepair(existing: ArelConfig): Promise<number> {
   s.stop("Bun ready.");
 
   s.start("Reinstalling dependencies and rebuilding…");
-  const installRes = await runStreaming(bunResult.bunBin, ["install"], { cwd: existing.installDir });
+  const installRes = await runStreaming(bunResult.bunBin, ["install"], {
+    cwd: existing.installDir,
+  });
   const buildRes =
     installRes.code === 0
       ? await runStreaming(bunResult.bunBin, ["run", "build"], { cwd: existing.installDir })
@@ -87,14 +94,29 @@ async function runRepair(existing: ArelConfig): Promise<number> {
   const labels = resolveServiceLabels(existing);
   installServiceFiles(existing.installDir, resolveRoot(existing), labels);
   const bootstrap = await bootstrapAndStart(labels);
-  s.stop(bootstrap.errors.length ? "Services re-registered with warnings." : "Services re-registered.");
+  s.stop(
+    bootstrap.errors.length ? "Services re-registered with warnings." : "Services re-registered.",
+  );
   for (const e of bootstrap.errors) console.error(pc.yellow(e));
+
+  // Refresh the shared localhost-domain proxy too (0.2.3) — best-effort, never fails repair.
+  if (await canBindPort80()) {
+    const proxyResult = await installProxyService(existing.installDir);
+    if (!proxyResult.ok)
+      console.error(
+        pc.yellow(`Localhost-domain proxy refresh had a warning: ${proxyResult.error}`),
+      );
+  }
 
   s.start("Health check…");
   const health = await waitForHealthy(existing.webPort, existing.vaultPort);
   s.stop(health.healthy ? "Healthy." : "Health check timed out.");
   if (!health.healthy) {
-    console.error(pc.red(formatHealthTimeoutDiagnostics(resolveRoot(existing), (p) => lastLines(p, 10), logPathFor)));
+    console.error(
+      pc.red(
+        formatHealthTimeoutDiagnostics(resolveRoot(existing), (p) => lastLines(p, 10), logPathFor),
+      ),
+    );
     console.error(pc.dim("\nFull logs: arelos logs"));
   }
   return health.healthy ? 0 : 1;

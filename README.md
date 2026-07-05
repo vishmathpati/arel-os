@@ -44,7 +44,7 @@ The core app needs zero API keys and works fully offline from the first run.
 ## After install
 
 ```
-arelos list        # see every install on this Mac
+arelos list        # see every install on this Mac (name, ports, domain, status)
 arelos status      # is it running, and where
 arelos update      # pull the latest version
 arelos logs        # tail the service logs
@@ -57,6 +57,12 @@ background, so it's always there at `localhost` — no terminal window to babysi
 Running more than one install on the same Mac? Pass its name to any of the
 commands above (e.g. `arelos status "Work Brain"`) — with just one install, the
 name is optional.
+
+If port 80 is free on your Mac, install also gives you `http://<name>.localhost`
+— a memorable address per install, backed by one small shared proxy service
+(`arelos list` shows each install's domain). If something else already owns
+port 80, this is skipped automatically and the `localhost:<port>` address
+above still works exactly the same.
 
 ## Philosophy
 
