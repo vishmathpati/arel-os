@@ -4,6 +4,7 @@ import {
   type ProxyInstallEntry,
   buildRoutingTable,
   domainFor,
+  isLoopbackAddress,
   renderIndexPage,
   resolveTarget,
 } from "../src/proxy.js";
@@ -92,4 +93,56 @@ test("buildRoutingTable: silently skips entries whose config is missing (stale r
     root === "/tmp/work-brain" ? { webPort: 1400 } : null,
   );
   assert.deepEqual(table, [{ name: "Work Brain", slug: "work-brain", webPort: 1400 }]);
+});
+
+// ── isLoopbackAddress: the security guard behind the wildcard 0.0.0.0:80 bind ──
+// (macOS only allows unprivileged port-80 binds on the wildcard address, so
+// the proxy is LAN-reachable at the socket level — this predicate is the only
+// thing standing between the LAN and the routing logic. Exhaustive on purpose.)
+
+test("isLoopbackAddress: accepts IPv4 loopback 127.0.0.1", () => {
+  assert.equal(isLoopbackAddress("127.0.0.1"), true);
+});
+
+test("isLoopbackAddress: accepts the whole 127.0.0.0/8 range", () => {
+  assert.equal(isLoopbackAddress("127.0.0.2"), true);
+  assert.equal(isLoopbackAddress("127.255.255.254"), true);
+});
+
+test("isLoopbackAddress: accepts IPv6 loopback ::1", () => {
+  assert.equal(isLoopbackAddress("::1"), true);
+});
+
+test("isLoopbackAddress: accepts IPv4-mapped IPv6 loopback ::ffff:127.0.0.1 (Node's form for IPv4 peers on dual-stack sockets)", () => {
+  assert.equal(isLoopbackAddress("::ffff:127.0.0.1"), true);
+  assert.equal(isLoopbackAddress("::ffff:127.0.0.53"), true);
+});
+
+test("isLoopbackAddress: rejects LAN and public IPv4 addresses", () => {
+  assert.equal(isLoopbackAddress("192.168.1.42"), false);
+  assert.equal(isLoopbackAddress("10.0.0.5"), false);
+  assert.equal(isLoopbackAddress("172.16.0.1"), false);
+  assert.equal(isLoopbackAddress("8.8.8.8"), false);
+});
+
+test("isLoopbackAddress: rejects IPv4-mapped non-loopback addresses", () => {
+  assert.equal(isLoopbackAddress("::ffff:192.168.1.42"), false);
+  assert.equal(isLoopbackAddress("::ffff:8.8.8.8"), false);
+});
+
+test("isLoopbackAddress: rejects non-loopback IPv6 addresses", () => {
+  assert.equal(isLoopbackAddress("fe80::1"), false);
+  assert.equal(isLoopbackAddress("2001:db8::1"), false);
+  assert.equal(isLoopbackAddress("::2"), false);
+});
+
+test("isLoopbackAddress: rejects a missing remoteAddress (socket already torn down)", () => {
+  assert.equal(isLoopbackAddress(undefined), false);
+  assert.equal(isLoopbackAddress(""), false);
+});
+
+test("isLoopbackAddress: rejects lookalike strings that merely contain 127", () => {
+  assert.equal(isLoopbackAddress("1127.0.0.1"), false);
+  assert.equal(isLoopbackAddress("127.0.0"), false);
+  assert.equal(isLoopbackAddress("localhost"), false);
 });

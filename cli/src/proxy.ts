@@ -6,13 +6,17 @@
  *
  * Empirical notes (checked on this machine before building this, since the
  * behavior differs across Mac configurations):
- *   - Binding port 80 as an unprivileged process is NOT guaranteed on modern
- *     macOS — it depends on local configuration. On the dev machine used to
- *     build this feature, an unprivileged bind to 127.0.0.1:80 failed with
- *     EACCES (no passwordless sudo available to grant it). The feature is
- *     therefore built to *attempt* the bind and gracefully skip when it
- *     can't, rather than assume success (see canBindPort80 in
- *     proxy-service.ts, and the fallback path in install.ts/update.ts).
+ *   - Unprivileged port-80 binding on modern macOS is ADDRESS-SPECIFIC:
+ *     binding 127.0.0.1:80 fails with EACCES, but binding the wildcard
+ *     address 0.0.0.0:80 succeeds — macOS's unprivileged low-port allowance
+ *     (since Mojave) applies to the wildcard address only. Both verified
+ *     empirically on the dev machine. The proxy therefore binds 0.0.0.0:80
+ *     and compensates for the wider exposure with a mandatory loopback-only
+ *     guard (isLoopbackAddress below): every connection from a non-loopback
+ *     peer is destroyed immediately, so nothing on the LAN ever gets a byte
+ *     back. canBindPort80 (proxy-service.ts) probes the wildcard address to
+ *     match, and install/update/repair still skip gracefully when port 80 is
+ *     genuinely occupied.
  *   - `curl --resolve host:port:127.0.0.1` and a raw `Host:` header both
  *     route correctly through a Host-header-matching proxy on a real port —
  *     verified against a throwaway Node http server on port 8899.
@@ -27,6 +31,22 @@ export interface ProxyInstallEntry {
   name: string;
   slug: string;
   webPort: number;
+}
+
+/**
+ * SECURITY GUARD for the wildcard bind (see module docstring): true only for
+ * loopback peer addresses. Accepts the whole 127.0.0.0/8 IPv4 loopback range
+ * (as raw "127.x.x.x" or IPv4-mapped-IPv6 "::ffff:127.x.x.x", the form Node
+ * reports for IPv4 peers on a dual-stack socket) and IPv6 "::1". Everything
+ * else — including a missing/undefined remoteAddress (socket already gone) —
+ * is rejected. Pure string logic so it's unit-testable; the standalone proxy
+ * runtime embeds the identical rule.
+ */
+export function isLoopbackAddress(remoteAddress: string | undefined): boolean {
+  if (!remoteAddress) return false;
+  if (remoteAddress === "::1") return true;
+  const v4 = remoteAddress.startsWith("::ffff:") ? remoteAddress.slice(7) : remoteAddress;
+  return /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(v4);
 }
 
 /**

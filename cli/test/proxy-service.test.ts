@@ -2,12 +2,14 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
-import { tmpdir } from "node:os";
+import { createServer as createNetServer } from "node:net";
+import { networkInterfaces, tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { PROXY_LABEL } from "../src/paths.js";
 import { looksLikeValidPlist } from "../src/plist.js";
 import { PROXY_SCRIPT_SOURCE, canBindPort80, renderProxyPlist } from "../src/proxy-service.js";
+import { isLoopbackAddress } from "../src/proxy.js";
 
 // import.meta.dirname is dist-test/test/ once compiled; walk up to the repo root.
 const REPO_ROOT = join(import.meta.dirname, "..", "..", "..");
@@ -23,13 +25,26 @@ test("renderProxyPlist: renders the real shipped proxy.plist.tmpl into a valid, 
   assert.match(xml, /<key>KeepAlive<\/key><true\/>/);
 });
 
-test("canBindPort80: resolves a boolean without throwing, and never leaves a listener behind", async () => {
-  // We don't assert which way this goes — it's genuinely machine-dependent (see
-  // proxy-service.ts docstring: this dev machine reports false, EACCES, without
-  // elevated privileges). The contract under test is just "probes safely and
-  // reports the real capability, without binding permanently or serving traffic".
+test("canBindPort80: agrees with a direct wildcard bind attempt, and never leaves a listener behind", async () => {
+  // The probe MUST target the wildcard address (0.0.0.0): macOS's unprivileged
+  // low-port allowance applies only to it — a loopback-specific probe reports
+  // "can't bind" (EACCES) on a stock Mac even though the wildcard bind works,
+  // which would silently disable the domains feature everywhere. Rather than
+  // hard-coding the expected boolean (something else could legitimately hold
+  // port 80 on a given machine), assert the probe agrees with an independent
+  // direct 0.0.0.0:80 bind attempt performed right here.
+  const direct = await new Promise<boolean>((resolve) => {
+    const server = createNetServer();
+    server.once("error", () => {
+      server.close();
+      resolve(false);
+    });
+    server.once("listening", () => server.close(() => resolve(true)));
+    server.listen(80, "0.0.0.0");
+  });
+
   const result = await canBindPort80();
-  assert.equal(typeof result, "boolean");
+  assert.equal(result, direct, "probe must report the same capability as a direct wildcard bind");
 
   // If it reported bindable, prove nothing is still holding the port afterward
   // by successfully binding again ourselves.
@@ -37,6 +52,64 @@ test("canBindPort80: resolves a boolean without throwing, and never leaves a lis
     const again = await canBindPort80();
     assert.equal(again, true, "port 80 must be free again immediately after the probe closes it");
   }
+});
+
+test("PROXY_SCRIPT_SOURCE: binds the wildcard address and carries the loopback-only guard at connection, request, and upgrade layers", () => {
+  // Wildcard bind (the reason the guard exists — see proxy.ts docstring).
+  assert.match(PROXY_SCRIPT_SOURCE, /server\.listen\(PORT, "0\.0\.0\.0"/);
+  assert.ok(
+    !PROXY_SCRIPT_SOURCE.includes('server.listen(PORT, "127.0.0.1"'),
+    "must not bind loopback-only — that fails EACCES unprivileged on macOS",
+  );
+  // Connection-level guard (primary: destroys before HTTP parsing).
+  assert.match(
+    PROXY_SCRIPT_SOURCE,
+    /server\.on\("connection", \(socket\) => \{\s*\n?\s*if \(!isLoopbackAddress\(socket\.remoteAddress\)\) socket\.destroy\(\);/,
+  );
+  // Request-level guard (defense in depth).
+  assert.match(PROXY_SCRIPT_SOURCE, /if \(!isLoopbackAddress\(req\.socket\.remoteAddress\)\)/);
+  // Upgrade-path guard.
+  assert.match(PROXY_SCRIPT_SOURCE, /if \(!isLoopbackAddress\(clientSocket\.remoteAddress\)\)/);
+});
+
+test("connection guard (mocked socket): destroys a non-loopback peer and leaves a loopback peer alone", () => {
+  // The exact wiring the runtime installs on "connection" (asserted to exist
+  // in the script source above), exercised against mocked socket objects so
+  // the reject path is proven without needing a real LAN peer.
+  const guard = (socket: { remoteAddress?: string; destroy: () => void }) => {
+    if (!isLoopbackAddress(socket.remoteAddress)) socket.destroy();
+  };
+
+  const mockSocket = (remoteAddress: string | undefined) => {
+    const socket = {
+      remoteAddress,
+      destroyed: false,
+      destroy() {
+        socket.destroyed = true;
+      },
+    };
+    return socket;
+  };
+
+  const lan = mockSocket("192.168.1.42");
+  guard(lan);
+  assert.equal(lan.destroyed, true, "a LAN peer must be destroyed on arrival");
+
+  const mappedLan = mockSocket("::ffff:10.0.0.7");
+  guard(mappedLan);
+  assert.equal(mappedLan.destroyed, true, "an IPv4-mapped LAN peer must be destroyed too");
+
+  const missing = mockSocket(undefined);
+  guard(missing);
+  assert.equal(missing.destroyed, true, "a socket with no peer address must be rejected");
+
+  const loopback = mockSocket("127.0.0.1");
+  guard(loopback);
+  assert.equal(loopback.destroyed, false, "loopback peers must pass through untouched");
+
+  const v6Loopback = mockSocket("::1");
+  guard(v6Loopback);
+  assert.equal(v6Loopback.destroyed, false, "IPv6 loopback peers must pass through untouched");
 });
 
 test("PROXY_SCRIPT_SOURCE: is syntactically valid ESM (uses import, not require, since it's written with a .mjs extension)", () => {
@@ -158,6 +231,21 @@ test("proxy runtime script (real process, high port): routes a Host-header reque
     const indexBody = await indexRes.text();
     assert.match(indexBody, /Test Brain/);
     assert.match(indexBody, /test-brain\.localhost/);
+
+    // SECURITY GUARD end-to-end: connect via the machine's own LAN address —
+    // the proxy then sees a genuine non-loopback remoteAddress (verified
+    // empirically: peer shows as the LAN IP, e.g. 192.168.x.x, not 127.0.0.1)
+    // and must destroy the connection before responding. Skipped only when
+    // the machine has no external IPv4 interface (e.g. no network).
+    const lanAddress = Object.values(networkInterfaces())
+      .flatMap((addrs) => addrs ?? [])
+      .find((a) => a.family === "IPv4" && !a.internal)?.address;
+    if (lanAddress) {
+      await assert.rejects(
+        fetch(`http://${lanAddress}:${PROXY_PORT}/`, { signal: AbortSignal.timeout(3000) }),
+        `a request arriving from non-loopback peer ${lanAddress} must be destroyed, not answered`,
+      );
+    }
   } finally {
     child.kill();
     await new Promise((resolve) => backend.close(resolve));

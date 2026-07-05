@@ -5,11 +5,17 @@
  * the pure host-routing logic this service's runtime script embeds.
  *
  * Design (see proxy.ts docstring for the empirical findings behind this):
- *   - The proxy binds 127.0.0.1:80 only when that's actually possible on this
- *     Mac (checked fresh via canBindPort80 — never assumed). If port 80 is
+ *   - The proxy binds the WILDCARD address 0.0.0.0:80 — macOS's unprivileged
+ *     low-port allowance applies to the wildcard address only (binding
+ *     127.0.0.1:80 fails EACCES; both verified empirically). Because the
+ *     wildcard bind is reachable from the LAN, the runtime enforces a
+ *     mandatory loopback-only guard: every connection whose peer address is
+ *     not loopback is destroyed on arrival (see isLoopbackAddress in
+ *     proxy.ts — the runtime embeds the identical rule at the connection,
+ *     request, and websocket-upgrade layers). Bindability is still checked
+ *     fresh via canBindPort80 (also probing 0.0.0.0) — if port 80 is
  *     occupied by something else, install/update/repair skip the proxy
- *     silently (one info line) and ports remain the way in — nothing about
- *     the rest of the install is gated on this.
+ *     silently (one info line) and ports remain the way in.
  *   - The runtime script is NOT part of any single install's checkout. It's
  *     written to ~/.arelos/proxy.mjs (alongside the registry) and
  *     (re)written by the CLI on every install/update/repair, so it always
@@ -39,12 +45,14 @@ import {
 } from "./paths.js";
 
 /**
- * Probe whether an unprivileged process can bind 127.0.0.1:80 on this
- * machine right now. Binds and immediately closes — never serves. This is
- * checked fresh on every install/update/repair rather than assumed, since
- * whether unprivileged port 80 binds is a per-machine/per-OS-version fact,
- * not a constant (verified empirically while building this feature: it
- * fails with EACCES on the dev machine without elevated privileges).
+ * Probe whether an unprivileged process can bind 0.0.0.0:80 (the address the
+ * proxy actually uses) on this machine right now. Binds and immediately
+ * closes — never serves. Checked fresh on every install/update/repair rather
+ * than assumed. Probing the WILDCARD address matters: macOS's unprivileged
+ * low-port allowance applies only to it — a 127.0.0.1:80 probe fails EACCES
+ * on a stock Mac even though the wildcard bind succeeds (both verified
+ * empirically on the dev machine), so a loopback probe would wrongly report
+ * "can't bind" on virtually every machine.
  */
 export function canBindPort80(): Promise<boolean> {
   return new Promise((resolve) => {
@@ -57,7 +65,7 @@ export function canBindPort80(): Promise<boolean> {
       server.close(() => resolve(true));
     });
     try {
-      server.listen(80, "127.0.0.1");
+      server.listen(80, "0.0.0.0");
     } catch {
       resolve(false);
     }
@@ -142,9 +150,28 @@ function renderIndexPage(installs) {
 \`;
 }
 
+// SECURITY GUARD: the proxy binds the wildcard address (macOS only allows
+// unprivileged port-80 binds on 0.0.0.0, not 127.0.0.1), which makes the
+// port reachable from the LAN. Only loopback peers may talk to it: accept
+// 127.0.0.0/8 (raw or IPv4-mapped ::ffff:127.x.x.x) and ::1; destroy
+// everything else immediately, before any request parsing or response.
+// Mirrors isLoopbackAddress in the CLI's proxy.ts (unit tested there).
+function isLoopbackAddress(remoteAddress) {
+  if (!remoteAddress) return false;
+  if (remoteAddress === "::1") return true;
+  const v4 = remoteAddress.startsWith("::ffff:") ? remoteAddress.slice(7) : remoteAddress;
+  return /^127\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}$/.test(v4);
+}
+
 const PORT = Number(process.env.ARELOS_PROXY_PORT || 80);
 
 const server = http.createServer((req, res) => {
+  // Redundant with the connection-level guard below, kept as defense in
+  // depth (e.g. a socket whose peer address only resolves post-handshake).
+  if (!isLoopbackAddress(req.socket.remoteAddress)) {
+    req.socket.destroy();
+    return;
+  }
   const installs = buildRoutingTable();
   const target = resolveTarget(req.headers.host, installs);
   if (!target) {
@@ -179,6 +206,11 @@ const server = http.createServer((req, res) => {
 // The current web service (vite preview, per scripts/service/run-web.sh)
 // doesn't require this, but it's trivial to add and future-proofs the proxy.
 server.on("upgrade", (req, clientSocket, head) => {
+  // Same loopback-only guard as the request path (see above).
+  if (!isLoopbackAddress(clientSocket.remoteAddress)) {
+    clientSocket.destroy();
+    return;
+  }
   const installs = buildRoutingTable();
   const target = resolveTarget(req.headers.host, installs);
   if (!target) {
@@ -200,8 +232,19 @@ server.on("upgrade", (req, clientSocket, head) => {
   upstream.on("error", () => clientSocket.destroy());
 });
 
-server.listen(PORT, "127.0.0.1", () => {
-  console.log(\`[\${new Date().toISOString()}] Arel OS proxy listening on http://127.0.0.1:\${PORT}\`);
+// Primary guard: kill non-loopback connections the moment they arrive,
+// before the HTTP parser ever sees a byte.
+server.on("connection", (socket) => {
+  if (!isLoopbackAddress(socket.remoteAddress)) socket.destroy();
+});
+
+// Bind the wildcard address — see the guard comment above for why (macOS
+// unprivileged low-port binds only work on 0.0.0.0). Loopback-only access is
+// enforced by the guards, not the bind address. IPv6 note: browsers trying
+// ::1 first get an instant refusal and fall back to 127.0.0.1 (verified with
+// curl's dual-stack attempt order while building this).
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(\`[\${new Date().toISOString()}] Arel OS proxy listening on port \${PORT} (0.0.0.0 bind, loopback-only guard active)\`);
 });
 `;
 
