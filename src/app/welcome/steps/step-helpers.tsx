@@ -10,7 +10,8 @@ import { ExternalLink } from "lucide-react";
 interface Helper {
   name: string;
   blurb: string;
-  href: string;
+  /** Absent when the companion isn't released yet — renders "Coming soon" instead of a link. */
+  href?: string;
 }
 
 const HELPERS: Helper[] = [
@@ -27,7 +28,6 @@ const HELPERS: Helper[] = [
   {
     name: "Arel Blocker",
     blurb: "Blocks distracting sites during a Focus Session.",
-    href: "https://github.com/vishmathpati/arel-blocker",
   },
 ];
 
@@ -57,12 +57,16 @@ export function StepHelpers({ onNext }: { onNext: () => void }) {
               </div>
               <p className="text-caption text-muted-foreground">{h.blurb}</p>
             </div>
-            <Button variant="outline" size="sm" asChild>
-              <a href={h.href} target="_blank" rel="noreferrer">
-                Install
-                <ExternalLink className="size-3.5" />
-              </a>
-            </Button>
+            {h.href ? (
+              <Button variant="outline" size="sm" asChild>
+                <a href={h.href} target="_blank" rel="noreferrer">
+                  Install
+                  <ExternalLink className="size-3.5" />
+                </a>
+              </Button>
+            ) : (
+              <span className="text-caption text-muted-foreground shrink-0">Coming soon</span>
+            )}
           </div>
         ))}
       </div>
