@@ -1,0 +1,31 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "arelos",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": ["run", "dev"],
+      "port": 1347,
+      "autoPort": false
+    },
+    {
+      "name": "arelos-dev",
+      "runtimeExecutable": "bunx",
+      "runtimeArgs": ["vite", "--port", "1350", "--strictPort"],
+      "port": 1350,
+      "autoPort": false
+    },
+    {
+      "name": "arelos-preview",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": ["run", "preview"],
+      "port": 4273
+    },
+    {
+      "name": "arelos-vault",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": ["server/index.ts"],
+      "port": 5274
+    }
+  ]
+}

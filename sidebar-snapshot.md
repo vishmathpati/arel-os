@@ -1,0 +1,214 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - generic [ref=e6]:
+      - generic [ref=e8]: Arel OS
+      - generic [ref=e9]:
+        - list [ref=e12]:
+          - listitem [ref=e13]:
+            - link "Home" [ref=e14] [cursor=pointer]:
+              - /url: /
+              - img [ref=e15]
+              - generic [ref=e18]: Home
+          - listitem [ref=e19]:
+            - link "Tasks" [ref=e20] [cursor=pointer]:
+              - /url: /tasks
+              - img [ref=e21]
+              - generic [ref=e24]: Tasks
+          - listitem [ref=e25]:
+            - link "Habits" [ref=e26] [cursor=pointer]:
+              - /url: /habits
+              - img [ref=e27]
+              - generic [ref=e29]: Habits
+          - listitem [ref=e30]:
+            - link "Quests" [ref=e31] [cursor=pointer]:
+              - /url: /quests
+              - img [ref=e32]
+              - generic [ref=e35]: Quests
+          - listitem [ref=e36]:
+            - link "Projects" [ref=e37] [cursor=pointer]:
+              - /url: /projects
+              - img [ref=e38]
+              - generic [ref=e40]: Projects
+          - listitem [ref=e41]:
+            - link "Inbox" [ref=e42] [cursor=pointer]:
+              - /url: /inbox
+              - img [ref=e43]
+              - generic [ref=e46]: Inbox
+            - generic: "18"
+          - listitem [ref=e47]:
+            - link "Library" [ref=e48] [cursor=pointer]:
+              - /url: /library
+              - img [ref=e49]
+              - generic [ref=e51]: Library
+          - listitem [ref=e52]:
+            - link "Databases" [ref=e53] [cursor=pointer]:
+              - /url: /databases
+              - img [ref=e54]
+              - generic [ref=e58]: Databases
+        - generic [ref=e59]:
+          - generic [ref=e60] [cursor=pointer]:
+            - img [ref=e61]
+            - text: Pages
+          - list [ref=e64]:
+            - listitem [ref=e65]:
+              - link "Untitled" [ref=e66] [cursor=pointer]:
+                - /url: /pages/untitled-10
+                - img [ref=e67]
+                - generic [ref=e70]: Untitled
+              - button "Delete page" [ref=e71]:
+                - img [ref=e72]
+            - listitem [ref=e75]:
+              - link "Untitled" [ref=e76] [cursor=pointer]:
+                - /url: /pages/untitled-2
+                - img [ref=e77]
+                - generic [ref=e80]: Untitled
+              - button "Delete page" [ref=e81]:
+                - img [ref=e82]
+            - listitem [ref=e85]:
+              - link "Untitled" [ref=e86] [cursor=pointer]:
+                - /url: /pages/untitled-3
+                - img [ref=e87]
+                - generic [ref=e90]: Untitled
+              - button "Expand subpages" [ref=e91]:
+                - img [ref=e92]
+              - button "Delete page" [ref=e94]:
+                - img [ref=e95]
+            - listitem [ref=e98]:
+              - link "Untitled" [ref=e99] [cursor=pointer]:
+                - /url: /pages/untitled-5
+                - img [ref=e100]
+                - generic [ref=e103]: Untitled
+              - button "Delete page" [ref=e104]:
+                - img [ref=e105]
+            - listitem [ref=e108]:
+              - link "Untitled" [ref=e109] [cursor=pointer]:
+                - /url: /pages/untitled-6
+                - img [ref=e110]
+                - generic [ref=e113]: Untitled
+              - button "Delete page" [ref=e114]:
+                - img [ref=e115]
+            - listitem [ref=e118]:
+              - link "Untitled" [ref=e119] [cursor=pointer]:
+                - /url: /pages/untitled-7
+                - img [ref=e120]
+                - generic [ref=e123]: Untitled
+              - button "Delete page" [ref=e124]:
+                - img [ref=e125]
+            - listitem [ref=e128]:
+              - link "Untitled" [ref=e129] [cursor=pointer]:
+                - /url: /pages/untitled-8
+                - img [ref=e130]
+                - generic [ref=e133]: Untitled
+              - button "Delete page" [ref=e134]:
+                - img [ref=e135]
+            - listitem [ref=e138]:
+              - link "Untitled" [ref=e139] [cursor=pointer]:
+                - /url: /pages/untitled-9
+                - img [ref=e140]
+                - generic [ref=e143]: Untitled
+              - button "Delete page" [ref=e144]:
+                - img [ref=e145]
+            - listitem [ref=e148]:
+              - link "Untitled" [ref=e149] [cursor=pointer]:
+                - /url: /pages/untitled
+                - img [ref=e150]
+                - generic [ref=e153]: Untitled
+              - button "Delete page" [ref=e154]:
+                - img [ref=e155]
+            - listitem [ref=e158]:
+              - button "New page" [ref=e159]:
+                - img [ref=e160]
+                - generic [ref=e161]: New page
+        - generic [ref=e162]:
+          - generic [ref=e163]: Areas
+          - list [ref=e235]:
+            - listitem [ref=e236]:
+              - link "Health" [ref=e237] [cursor=pointer]:
+                - /url: /areas/health
+                - img [ref=e238]
+                - generic [ref=e241]: Health
+            - listitem [ref=e242]:
+              - link "Finance" [ref=e243] [cursor=pointer]:
+                - /url: /areas/finance
+                - img [ref=e244]
+                - generic [ref=e247]: Finance
+            - listitem [ref=e248]:
+              - link "Learning" [ref=e249] [cursor=pointer]:
+                - /url: /areas/learning
+                - img [ref=e250]
+                - generic [ref=e253]: Learning
+            - listitem [ref=e254]:
+              - link "Spirituality" [ref=e255] [cursor=pointer]:
+                - /url: /areas/spirituality
+                - img [ref=e256]
+                - generic [ref=e259]: Spirituality
+            - listitem [ref=e260]:
+              - link "YouTube" [ref=e261] [cursor=pointer]:
+                - /url: /areas/youtube
+                - img [ref=e262]
+                - generic [ref=e265]: YouTube
+            - listitem [ref=e266]:
+              - link "Business" [ref=e267] [cursor=pointer]:
+                - /url: /areas/business
+                - img [ref=e268]
+                - generic [ref=e271]: Business
+              - button "Expand sub-areas" [ref=e272]:
+                - img [ref=e273]
+        - generic [ref=e164]:
+          - generic [ref=e165]: Operating Rhythm
+          - list [ref=e167]:
+            - listitem [ref=e168]:
+              - link "Morning Manifesto" [ref=e169] [cursor=pointer]:
+                - /url: /morning
+                - img [ref=e170]
+                - generic [ref=e175]: Morning Manifesto
+            - listitem [ref=e176]:
+              - link "Evening Shutdown" [ref=e177] [cursor=pointer]:
+                - /url: /evening
+                - img [ref=e178]
+                - generic [ref=e180]: Evening Shutdown
+            - listitem [ref=e181]:
+              - link "Focus Session" [ref=e182] [cursor=pointer]:
+                - /url: /focus
+                - img [ref=e183]
+                - generic [ref=e186]: Focus Session
+            - listitem [ref=e187]:
+              - link "Weekly Review" [ref=e188] [cursor=pointer]:
+                - /url: /weekly
+                - img [ref=e189]
+                - generic [ref=e192]: Weekly Review
+            - listitem [ref=e193]:
+              - link "Ideal Week" [ref=e194] [cursor=pointer]:
+                - /url: /ideal-week
+                - img [ref=e195]
+                - generic [ref=e197]: Ideal Week
+        - list [ref=e200]:
+          - listitem [ref=e201]:
+            - link "Guide" [ref=e202] [cursor=pointer]:
+              - /url: /guide
+              - img [ref=e203]
+              - generic [ref=e206]: Guide
+      - list [ref=e208]:
+        - listitem [ref=e209]:
+          - button "V Vish" [ref=e210]:
+            - generic [ref=e212]: V
+            - generic [ref=e213]: Vish
+            - img [ref=e214]
+      - button "Toggle Sidebar" [ref=e217]
+    - main [ref=e218]:
+      - generic [ref=e219]:
+        - generic [ref=e220]:
+          - button "Toggle Sidebar" [ref=e221]:
+            - img
+            - generic [ref=e222]: Toggle Sidebar
+          - navigation "breadcrumb" [ref=e223]:
+            - list [ref=e224]:
+              - listitem [ref=e225]:
+                - link "Home" [disabled] [ref=e226]
+          - button "Toggle theme" [ref=e228]:
+            - img
+        - generic [ref=e229]:
+          - img [ref=e230]
+          - heading "Home" [level=2] [ref=e233]
+          - paragraph [ref=e234]: Your daily overview — today's focus, scheduled tasks, and active quests — will live here.
+  - region "Notifications alt+T"

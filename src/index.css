@@ -1,0 +1,418 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/geist-mono";
+
+@plugin "tailwind-scrollbar-hide";
+
+/* Explicit source globs — automatic content detection misses files when the
+   project path contains a space ("Arel OS"). Keep these in sync with src/. */
+@source "./**/*.{ts,tsx}";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Token bridge. The canonical source of truth for every value here is
+ * agents/DESIGN.md. Never edit a token in this file without changing DESIGN.md
+ * FIRST, then mirroring here. Color values (oklch) appear once, in :root /
+ * .dark; @theme inline only references the vars so dark-mode overrides resolve.
+ */
+
+@theme inline {
+  /* Typography */
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --text-display: 64px;
+  --text-display--line-height: 1;
+  --text-heading: 20px;
+  --text-heading--line-height: 1.3;
+  --text-subheading: 16px;
+  --text-subheading--line-height: 1.4;
+  --text-body: 14px;
+  --text-body--line-height: 1.6;
+  --text-caption: 12px;
+  --text-caption--line-height: 1.5;
+  --text-mono: 13px;
+  --text-mono--line-height: 1.5;
+
+  /* Radius */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+
+  /*
+   * Spacing: DESIGN.md's scale (xs 4 / sm 8 / md 12 / lg 16 / xl 24 / 2xl 32 /
+   * 3xl 48 / 4xl 64) is pure 4px multiples — identical to Tailwind's default
+   * numeric scale. We use the numeric classes (p-1=xs, p-2=sm, p-3=md, p-4=lg,
+   * p-6=xl, p-8=2xl, p-12=3xl, p-16=4xl). Named --spacing-* tokens are NOT
+   * registered: their keys (sm/md/lg/xl/2xl…) collide with the container scale
+   * and would shadow max-w-2xl / max-w-3xl etc.
+   */
+
+  /* Shadow — floating layers only */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 16px 32px rgba(0, 0, 0, 0.12);
+
+  /* Motion */
+  --duration-fast: 120ms;
+  --duration-base: 180ms;
+  --duration-slow: 280ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Z-index scale */
+  --z-base: 0;
+  --z-dropdown: 1000;
+  --z-sticky: 1100;
+  --z-overlay: 1200;
+  --z-modal: 1300;
+  --z-popover: 1400;
+  --z-toast: 1500;
+  --z-tooltip: 1600;
+
+  /* Border widths */
+  --border-width-default: 1px;
+  --border-width-emphasis: 2px;
+
+  /* Icon sizes */
+  --icon-size-xs: 12px;
+  --icon-size-sm: 16px;
+  --icon-size-md: 20px;
+  --icon-size-lg: 24px;
+
+  /* Opacity */
+  --opacity-scrim: 0.5;
+  --opacity-disabled: 0.4;
+  --opacity-hover-tint: 0.06;
+  --opacity-divider: 0.5;
+
+  /* Control heights */
+  --control-height-sm: 32px;
+  --control-height-md: 36px;
+  --control-height-lg: 40px;
+
+  /* Colors — base */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Colors — extended surfaces + status */
+  --color-surface-2: var(--surface-2);
+  --color-hover: var(--hover);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-error: var(--error);
+  --color-error-foreground: var(--error-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+
+  /* Colors — sidebar */
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Colors — Ideal Week calendar categories (consumed in Chapter 14) */
+  --color-cat-ritual: var(--cat-ritual);
+  --color-cat-ritual-border: var(--cat-ritual-border);
+  --color-cat-deep-work: var(--cat-deep-work);
+  --color-cat-deep-work-border: var(--cat-deep-work-border);
+  --color-cat-admin: var(--cat-admin);
+  --color-cat-admin-border: var(--cat-admin-border);
+  --color-cat-health: var(--cat-health);
+  --color-cat-health-border: var(--cat-health-border);
+  --color-cat-social: var(--cat-social);
+  --color-cat-social-border: var(--cat-social-border);
+  --color-cat-learning: var(--cat-learning);
+  --color-cat-learning-border: var(--cat-learning-border);
+  --color-cat-recharge: var(--cat-recharge);
+  --color-cat-recharge-border: var(--cat-recharge-border);
+
+  --color-area-health: var(--area-health);
+  --color-area-finance: var(--area-finance);
+  --color-area-learning: var(--area-learning);
+  --color-area-spirituality: var(--area-spirituality);
+  --color-area-youtube: var(--area-youtube);
+  --color-area-business: var(--area-business);
+
+  /* Primitive type colors (D41) — a fixed muted tint per primitive type, used
+     on the type icon for at-a-glance scannability in mixed lists/pickers.
+     Functional signal, distinct from Area color. Mode-independent (same value
+     light + dark), like Area colors. Referenced via var(--color-type-<name>). */
+  --color-type-task: var(--type-task);
+  --color-type-project: var(--type-project);
+  --color-type-quest: var(--type-quest);
+  --color-type-page: var(--type-page);
+  --color-type-resource: var(--type-resource);
+  --color-type-database: var(--type-database);
+  --color-type-inbox: var(--type-inbox);
+  --color-highlight: var(--highlight);
+
+  /* Plate editor accent (selection/caret). Aliased to the primary accent so the
+     editor's `brand`-based utilities resolve on our palette (DESIGN.md, Ch7). */
+  --color-brand: var(--primary);
+
+  /* Tag / select-option colors (Ch8 — Notion-style colored option chips). Each
+     option color is a chip background + readable foreground; values per mode
+     below. Referenced dynamically as var(--color-tag-<name>[-fg]). */
+  --color-tag-gray: var(--tag-gray);
+  --color-tag-gray-fg: var(--tag-gray-fg);
+  --color-tag-brown: var(--tag-brown);
+  --color-tag-brown-fg: var(--tag-brown-fg);
+  --color-tag-orange: var(--tag-orange);
+  --color-tag-orange-fg: var(--tag-orange-fg);
+  --color-tag-yellow: var(--tag-yellow);
+  --color-tag-yellow-fg: var(--tag-yellow-fg);
+  --color-tag-green: var(--tag-green);
+  --color-tag-green-fg: var(--tag-green-fg);
+  --color-tag-blue: var(--tag-blue);
+  --color-tag-blue-fg: var(--tag-blue-fg);
+  --color-tag-purple: var(--tag-purple);
+  --color-tag-purple-fg: var(--tag-purple-fg);
+  --color-tag-pink: var(--tag-pink);
+  --color-tag-pink-fg: var(--tag-pink-fg);
+  --color-tag-red: var(--tag-red);
+  --color-tag-red-fg: var(--tag-red-fg);
+}
+
+/* Light mode (kept clean; app defaults to dark) */
+:root {
+  --background: oklch(0.9851 0 0);
+  --foreground: oklch(0.1776 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.1776 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.1776 0 0);
+  --primary: oklch(0.1776 0 0);
+  --primary-foreground: oklch(0.9851 0 0);
+  --secondary: oklch(0.4386 0 0);
+  --secondary-foreground: oklch(0.1776 0 0);
+  --muted: oklch(0.9702 0 0);
+  --muted-foreground: oklch(0.5555 0 0);
+  --accent: oklch(0.9521 0 0);
+  --accent-foreground: oklch(0.1776 0 0);
+  --destructive: oklch(0.5771 0.2152 27.33);
+  --destructive-foreground: oklch(1 0 0);
+  --border: oklch(0.9219 0 0);
+  --input: oklch(0.9219 0 0);
+  --ring: oklch(0.1776 0 0);
+
+  --surface-2: oklch(0.9702 0 0);
+  --hover: oklch(0.9491 0 0);
+  --success: oklch(0.6271 0.1699 149.21);
+  --success-foreground: oklch(1 0 0);
+  --warning: oklch(0.6806 0.1423 75.83);
+  --warning-foreground: oklch(0.1776 0 0);
+  --error: oklch(0.5771 0.2152 27.33);
+  --error-foreground: oklch(1 0 0);
+  --info: oklch(0.5461 0.2152 262.88);
+  --info-foreground: oklch(1 0 0);
+
+  --sidebar: oklch(0.9702 0 0);
+  --sidebar-foreground: oklch(0.1776 0 0);
+  --sidebar-primary: oklch(0.1776 0 0);
+  --sidebar-primary-foreground: oklch(0.9851 0 0);
+  --sidebar-accent: oklch(0.9521 0 0);
+  --sidebar-accent-foreground: oklch(0.1776 0 0);
+  --sidebar-border: oklch(0.9219 0 0);
+  --sidebar-ring: oklch(0.1776 0 0);
+
+  /* Category fills — light mode (Ch14 / D40): pale tints + vivid accent bars.
+     The .dark block keeps the deep fills. Block text uses --foreground in both. */
+  --cat-ritual: oklch(0.955 0.018 25);
+  --cat-ritual-border: oklch(0.585 0.155 25);
+  --cat-deep-work: oklch(0.955 0.018 256);
+  --cat-deep-work-border: oklch(0.555 0.145 256);
+  --cat-admin: oklch(0.955 0.02 282);
+  --cat-admin-border: oklch(0.56 0.165 282);
+  --cat-health: oklch(0.955 0.022 152);
+  --cat-health-border: oklch(0.585 0.13 152);
+  --cat-social: oklch(0.96 0.03 65);
+  --cat-social-border: oklch(0.64 0.14 55);
+  --cat-learning: oklch(0.955 0.02 185);
+  --cat-learning-border: oklch(0.58 0.11 195);
+  --cat-recharge: oklch(0.955 0.02 294);
+  --cat-recharge-border: oklch(0.56 0.17 294);
+
+  /* Area identity colors (D25 / D26). Mode-independent like status hues —
+     a quiet dot/accent per Area. Converted from the original hex via the
+     precise sRGB→OKLab transform. */
+  --area-health: oklch(0.6867 0.1277 158.95);
+  --area-finance: oklch(0.7466 0.1223 77.04);
+  --area-learning: oklch(0.6815 0.088 207.9);
+  --area-spirituality: oklch(0.6863 0.1334 290.94);
+  --area-youtube: oklch(0.6522 0.1585 23.84);
+  --area-business: oklch(0.6253 0.1304 261.91);
+
+  /* Primitive type colors (D41) — muted, mode-independent icon tints. */
+  --type-task: oklch(0.66 0.1 250);
+  --type-project: oklch(0.7 0.1 65);
+  --type-quest: oklch(0.66 0.11 292);
+  --type-page: oklch(0.66 0.04 235);
+  --type-resource: oklch(0.66 0.09 195);
+  --type-database: oklch(0.66 0.1 150);
+  --type-inbox: oklch(0.66 0.025 280);
+  --highlight: oklch(0.852 0.199 91.936);
+
+  /* Option chip colors — light (soft tint bg + saturated fg). */
+  --tag-default: oklch(0.94 0 0);
+  --tag-default-fg: oklch(0.37 0 0);
+  --tag-gray: oklch(0.928 0.004 286);
+  --tag-gray-fg: oklch(0.44 0.008 286);
+  --tag-brown: oklch(0.917 0.018 55);
+  --tag-brown-fg: oklch(0.43 0.045 50);
+  --tag-orange: oklch(0.928 0.045 60);
+  --tag-orange-fg: oklch(0.52 0.13 47);
+  --tag-yellow: oklch(0.94 0.055 95);
+  --tag-yellow-fg: oklch(0.52 0.1 88);
+  --tag-green: oklch(0.926 0.045 155);
+  --tag-green-fg: oklch(0.48 0.1 155);
+  --tag-blue: oklch(0.922 0.04 240);
+  --tag-blue-fg: oklch(0.5 0.12 248);
+  --tag-purple: oklch(0.927 0.042 300);
+  --tag-purple-fg: oklch(0.5 0.14 300);
+  --tag-pink: oklch(0.93 0.04 352);
+  --tag-pink-fg: oklch(0.53 0.14 358);
+  --tag-red: oklch(0.93 0.05 25);
+  --tag-red-fg: oklch(0.53 0.17 27);
+}
+
+/* Dark mode — the default experience */
+.dark {
+  --background: oklch(0.1776 0 0);
+  --foreground: oklch(0.9702 0 0);
+  --card: oklch(0.209 0 0);
+  --card-foreground: oklch(0.9702 0 0);
+  --popover: oklch(0.2308 0 0);
+  --popover-foreground: oklch(0.9702 0 0);
+  --primary: oklch(0.9702 0 0);
+  --primary-foreground: oklch(0.1776 0 0);
+  --secondary: oklch(0.7155 0 0);
+  --secondary-foreground: oklch(0.9702 0 0);
+  --muted: oklch(0.2308 0 0);
+  --muted-foreground: oklch(0.7155 0 0);
+  --accent: oklch(0.285 0 0);
+  --accent-foreground: oklch(0.9702 0 0);
+  --destructive: oklch(0.5771 0.2152 27.33);
+  --destructive-foreground: oklch(1 0 0);
+  --border: oklch(0.285 0 0);
+  --input: oklch(0.285 0 0);
+  --ring: oklch(0.9702 0 0);
+
+  --surface-2: oklch(0.2308 0 0);
+  --hover: oklch(0.252 0 0);
+  --success: oklch(0.6271 0.1699 149.21);
+  --success-foreground: oklch(1 0 0);
+  --warning: oklch(0.6806 0.1423 75.83);
+  --warning-foreground: oklch(0.1776 0 0);
+  --error: oklch(0.5771 0.2152 27.33);
+  --error-foreground: oklch(1 0 0);
+  --info: oklch(0.5461 0.2152 262.88);
+  --info-foreground: oklch(1 0 0);
+
+  --sidebar: oklch(0.2308 0 0);
+  --sidebar-foreground: oklch(0.9702 0 0);
+  --sidebar-primary: oklch(0.9702 0 0);
+  --sidebar-primary-foreground: oklch(0.1776 0 0);
+  --sidebar-accent: oklch(0.285 0 0);
+  --sidebar-accent-foreground: oklch(0.9702 0 0);
+  --sidebar-border: oklch(0.285 0 0);
+  --sidebar-ring: oklch(0.9702 0 0);
+
+  --cat-ritual: oklch(0.2554 0.0155 18.22);
+  --cat-ritual-border: oklch(0.3958 0.1331 25.72);
+  --cat-deep-work: oklch(0.2549 0.0313 260.42);
+  --cat-deep-work-border: oklch(0.3462 0.0736 256.04);
+  --cat-admin: oklch(0.2406 0.0228 284.56);
+  --cat-admin-border: oklch(0.3984 0.1773 277.37);
+  --cat-health: oklch(0.2653 0.0364 144.47);
+  --cat-health-border: oklch(0.3925 0.0896 152.54);
+  --cat-social: oklch(0.258 0.0215 72.85);
+  --cat-social-border: oklch(0.4137 0.1054 45.9);
+  --cat-learning: oklch(0.2522 0.0181 165.41);
+  --cat-learning-border: oklch(0.4318 0.0865 166.91);
+  --cat-recharge: oklch(0.2502 0.0189 294.16);
+  --cat-recharge-border: oklch(0.3796 0.1783 293.74);
+
+  /* Area identity colors (D25 / D26) — same values in both modes. */
+  --area-health: oklch(0.6867 0.1277 158.95);
+  --area-finance: oklch(0.7466 0.1223 77.04);
+  --area-learning: oklch(0.6815 0.088 207.9);
+  --area-spirituality: oklch(0.6863 0.1334 290.94);
+  --area-youtube: oklch(0.6522 0.1585 23.84);
+  --area-business: oklch(0.6253 0.1304 261.91);
+
+  /* Primitive type colors (D41) — same values as :root (mode-independent). */
+  --type-task: oklch(0.66 0.1 250);
+  --type-project: oklch(0.7 0.1 65);
+  --type-quest: oklch(0.66 0.11 292);
+  --type-page: oklch(0.66 0.04 235);
+  --type-resource: oklch(0.66 0.09 195);
+  --type-database: oklch(0.66 0.1 150);
+  --type-inbox: oklch(0.66 0.025 280);
+  --highlight: oklch(0.852 0.199 91.936);
+
+  /* Option chip colors — dark (deep tint bg + light fg). */
+  --tag-default: oklch(0.32 0 0);
+  --tag-default-fg: oklch(0.78 0 0);
+  --tag-gray: oklch(0.3 0.005 286);
+  --tag-gray-fg: oklch(0.8 0.008 286);
+  --tag-brown: oklch(0.305 0.02 55);
+  --tag-brown-fg: oklch(0.82 0.03 55);
+  --tag-orange: oklch(0.32 0.055 55);
+  --tag-orange-fg: oklch(0.84 0.09 60);
+  --tag-yellow: oklch(0.33 0.055 95);
+  --tag-yellow-fg: oklch(0.87 0.1 95);
+  --tag-green: oklch(0.305 0.045 155);
+  --tag-green-fg: oklch(0.84 0.09 155);
+  --tag-blue: oklch(0.305 0.05 248);
+  --tag-blue-fg: oklch(0.83 0.085 245);
+  --tag-purple: oklch(0.31 0.05 300);
+  --tag-purple-fg: oklch(0.84 0.09 300);
+  --tag-pink: oklch(0.315 0.05 352);
+  --tag-pink-fg: oklch(0.85 0.085 355);
+  --tag-red: oklch(0.315 0.06 27);
+  --tag-red-fg: oklch(0.84 0.1 27);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground font-sans;
+    font-size: 14px;
+    line-height: 1.6;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
