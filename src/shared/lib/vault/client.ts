@@ -68,3 +68,24 @@ export async function deleteDoc(
     }),
   );
 }
+
+/**
+ * POST /vault/env — onboarding AI-key gate (spec §5). Writes allowlisted keys
+ * into `.env` at the install root. The server never echoes values back —
+ * `keysSet` is names only, so this client never even has the opportunity to
+ * expose a value beyond the field the user just typed into.
+ */
+export async function writeEnvKeys(keys: Record<string, string>): Promise<{ keysSet: string[] }> {
+  return unwrap(
+    await fetch(`${BASE_URL}/vault/env`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ keys }),
+    }),
+  );
+}
+
+/** GET /vault/env/validate — a cheap, real gateway ping to confirm a just-saved key works. */
+export async function validateEnvKey(): Promise<{ ok: boolean; detail: string }> {
+  return unwrap(await fetch(`${BASE_URL}/vault/env/validate`));
+}

@@ -229,11 +229,11 @@ describe("step order helpers", () => {
     expect(stepIndex("nope" as never)).toBe(-1);
   });
 
-  it("marks the three gates and helpers as placeholder steps this phase", () => {
-    expect(isPlaceholderStep("gate-finance")).toBe(true);
-    expect(isPlaceholderStep("gate-recipes")).toBe(true);
-    expect(isPlaceholderStep("gate-ai")).toBe(true);
-    expect(isPlaceholderStep("helpers")).toBe(true);
+  it("has no placeholder steps as of Phase 2 — every step has a real screen", () => {
+    expect(isPlaceholderStep("gate-finance")).toBe(false);
+    expect(isPlaceholderStep("gate-recipes")).toBe(false);
+    expect(isPlaceholderStep("gate-ai")).toBe(false);
+    expect(isPlaceholderStep("helpers")).toBe(false);
     expect(isPlaceholderStep("quest")).toBe(false);
     expect(isPlaceholderStep("done")).toBe(false);
   });

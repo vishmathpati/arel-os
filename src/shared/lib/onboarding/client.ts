@@ -6,12 +6,12 @@
  * defaults" pattern but on the browser-only client since onboarding state is
  * pure UI/user-journey state, never read by the Engine.
  *
- * Step order (Phase 1, this build): welcome → areas → quest → project → tasks
- * → habit → inbox → manifesto → [gates: finance, recipes, ai — Phase 2] →
- * helpers [Phase 2] → done. Phase 1 renders the three gates and the helpers
- * step as placeholders and skips over them in the flow (see STEP_ORDER +
- * isPlaceholderStep below) so Phase 2 can slot in real screens without
- * touching the state machine shape.
+ * Step order: welcome → areas → quest → project → tasks → habit → inbox →
+ * manifesto → gate-finance → gate-recipes → gate-ai → helpers → done. As of
+ * Phase 2, every step (including the three gates + helpers) has a real
+ * screen — see `welcome-page.tsx`. `PLACEHOLDER_STEPS`/`isPlaceholderStep`
+ * are kept (now always empty/false) purely so a stale persisted
+ * `current_step` from a Phase-1 vault never resolves to an unknown branch.
  */
 
 import { readDoc, writeDoc } from "@/shared/lib/vault/client";
@@ -40,16 +40,11 @@ export const STEP_ORDER = [
 
 export type StepId = (typeof STEP_ORDER)[number];
 
-/** Steps whose real screens are Phase 2 work. Phase 1 auto-skips over them
- * (marks complete with `skipped: true`, no gate/data collected) so the flow
- * still reaches Done. Phase 2 replaces the skip-through with real screens —
- * see the module docstring in `src/app/welcome/welcome-page.tsx`. */
-export const PLACEHOLDER_STEPS: ReadonlySet<StepId> = new Set([
-  "gate-finance",
-  "gate-recipes",
-  "gate-ai",
-  "helpers",
-]);
+/** No step is a placeholder as of Phase 2 — every step has a real screen. Kept
+ * as an (empty) set + predicate rather than deleted so `welcome-page.tsx`'s
+ * defensive `isPlaceholderStep` branch (guarding a stale persisted
+ * `current_step`) still compiles without a dead import. */
+export const PLACEHOLDER_STEPS: ReadonlySet<StepId> = new Set([]);
 
 export function isPlaceholderStep(step: StepId): boolean {
   return PLACEHOLDER_STEPS.has(step);
@@ -77,6 +72,10 @@ export interface OnboardingArtifacts {
   habitTitle?: string;
   capturedInbox?: boolean;
   manifestoStarted?: boolean;
+  financeAccountCount?: number;
+  financeSubCount?: number;
+  recipesEnabledCount?: number;
+  aiKeyValidated?: boolean;
 }
 
 export interface OnboardingState {
@@ -144,6 +143,10 @@ function coerceArtifacts(fm: Partial<OnboardingFrontmatter>): OnboardingArtifact
   if (typeof a.habitTitle === "string") out.habitTitle = a.habitTitle;
   if (typeof a.capturedInbox === "boolean") out.capturedInbox = a.capturedInbox;
   if (typeof a.manifestoStarted === "boolean") out.manifestoStarted = a.manifestoStarted;
+  if (typeof a.financeAccountCount === "number") out.financeAccountCount = a.financeAccountCount;
+  if (typeof a.financeSubCount === "number") out.financeSubCount = a.financeSubCount;
+  if (typeof a.recipesEnabledCount === "number") out.recipesEnabledCount = a.recipesEnabledCount;
+  if (typeof a.aiKeyValidated === "boolean") out.aiKeyValidated = a.aiKeyValidated;
   return out;
 }
 
