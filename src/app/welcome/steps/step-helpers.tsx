@@ -17,11 +17,13 @@ interface Helper {
 const HELPERS: Helper[] = [
   {
     name: "Arel Clipper",
-    blurb: "Save any web page straight to your Inbox with one click.",
+    blurb: "Capture web pages, tweets, and videos into your inbox. Download the zip from releases, load it via chrome://extensions (Developer mode), and set your vault server in settings.",
+    href: "https://github.com/vishmathpati/arel-clipper/releases/tag/v1.6.3",
   },
   {
     name: "Arel Focus",
-    blurb: "A focus-timer that talks to your Focus Sessions.",
+    blurb: "Menu-bar attention & focus tracker for macOS. Early stage — build from source using instructions in its README.",
+    href: "https://github.com/vishmathpati/arel-focus",
   },
   {
     name: "Arel Blocker",

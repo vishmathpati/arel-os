@@ -70,11 +70,11 @@ name is optional.
 
 ## Optional companions
 
-These are separate installs that pair with Arel OS but aren't required by it. All three are coming soon as separate releases for v1.
+These are separate installs that pair with Arel OS but aren't required by it.
 
-- **Arel Clipper** — a browser extension for capturing pages straight to your inbox.
-- **Arel Focus** — a focus-timer that talks to your Focus Sessions.
-- **Arel Blocker** — blocks distracting sites during a Focus Session.
+- **[Arel Clipper](https://github.com/vishmathpati/arel-clipper/releases/tag/v1.6.3)** — a browser extension for capturing pages, tweets, and videos straight to your inbox. Download the zip from the release, load it via `chrome://extensions` (Developer mode), and set your vault server address in its settings (find your port with `arelos status`).
+- **[Arel Focus](https://github.com/vishmathpati/arel-focus)** — a menu-bar attention & focus tracker for macOS. Early stage — build from source using instructions in its README.
+- **Arel Blocker** — blocks distracting sites during a Focus Session. Coming soon.
 
 ## License
 
