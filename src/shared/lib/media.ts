@@ -6,7 +6,7 @@
  * thumbnails) are kept as absolute URLs and pass through untouched (D33).
  */
 
-const BASE_URL = import.meta.env.VITE_VAULT_API ?? "http://localhost:5274";
+import { VAULT_API as BASE_URL } from "@/shared/lib/vault/base-url";
 
 /** Absolute http(s)/data/blob URL, or a vault-relative path → server URL. */
 export function mediaSrc(url: string | undefined): string | undefined {

@@ -4,11 +4,10 @@
  * never runs the AI. Repo linking + lazy file content go through the engine server.
  */
 
+import { VAULT_API as BASE_URL } from "@/shared/lib/vault/base-url";
 import { readDoc } from "@/shared/lib/vault/client";
 import { projectSnapshotPath } from "@/shared/lib/vault/paths";
 import { type ProjectSnapshot, parseSnapshot } from "./snapshot";
-
-const BASE_URL = import.meta.env.VITE_VAULT_API ?? "http://localhost:5274";
 
 async function unwrap<T>(res: Response): Promise<T> {
   if (!res.ok) {

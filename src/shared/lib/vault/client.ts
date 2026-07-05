@@ -1,12 +1,11 @@
 /**
  * Frontend vault client — typed wrappers over the Bun vault server's HTTP
- * endpoints (server/index.ts). Browser-only (uses fetch). The base URL points
- * at the vault server on port 5274; override with VITE_VAULT_API.
+ * endpoints (server/index.ts). Browser-only (uses fetch). Base URL comes from
+ * VAULT_API (build-time VITE_VAULT_API, see base-url.ts).
  */
 
+import { VAULT_API as BASE_URL } from "./base-url";
 import type { AnyFrontmatter, VaultDoc, VaultListEntry } from "./schemas";
-
-const BASE_URL = import.meta.env.VITE_VAULT_API ?? "http://localhost:5274";
 
 /** A non-2xx response carries `{ error }` JSON; surface it as an Error. */
 async function unwrap<T>(res: Response): Promise<T> {

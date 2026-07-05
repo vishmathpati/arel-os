@@ -9,8 +9,7 @@ import type {
   FocusSessionResult,
   FocusStateSnapshot,
 } from "@/shared/lib/focus/contract";
-
-const BASE_URL = import.meta.env.VITE_VAULT_API ?? "http://localhost:5274";
+import { VAULT_API as BASE_URL } from "@/shared/lib/vault/base-url";
 
 async function unwrap<T>(res: Response): Promise<T> {
   if (!res.ok) {

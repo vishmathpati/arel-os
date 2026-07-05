@@ -2,13 +2,13 @@ import * as React from "react";
 
 import { toast } from "sonner";
 
+import { VAULT_API as BASE_URL } from "@/shared/lib/vault/base-url";
+
 /**
  * Local media upload (Chapter 7). Uploads dropped/selected files to the vault
  * server (`POST /vault/upload`), which saves them under `media/` and returns a
  * served URL. Replaces the cloud (uploadthing) uploader — this app is local-first.
  */
-
-const BASE_URL = import.meta.env.VITE_VAULT_API ?? "http://localhost:5274";
 
 export interface UploadedFile {
   key: string;

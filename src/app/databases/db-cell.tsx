@@ -33,13 +33,13 @@ import { AREA_OPTIONS } from "@/shared/lib/areas";
 import { DATE_FORMATS, formatDateValue, formatNumberValue } from "@/shared/lib/db-format";
 import { toDateStr } from "@/shared/lib/tasks/schedule";
 import { cn } from "@/shared/lib/utils";
+import { VAULT_API as MEDIA_BASE } from "@/shared/lib/vault/base-url";
 import { toWikilink, wikiTarget } from "@/shared/lib/vault/frontmatter";
 import { type RelationOption, relationOptions } from "@/shared/lib/vault/relations";
 import type { DatabaseColumn, NumberFormat } from "@/shared/lib/vault/schemas";
 import { CalendarClock, Check, Loader2, Paperclip, Plus, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
-const MEDIA_BASE = import.meta.env.VITE_VAULT_API ?? "http://localhost:5274";
 const IMAGE_RE = /\.(png|jpe?g|gif|webp|svg|avif)$/i;
 
 function mediaUrl(path: string): string {

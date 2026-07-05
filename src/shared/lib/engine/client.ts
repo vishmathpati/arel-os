@@ -1,11 +1,11 @@
 /**
  * Frontend engine client — typed wrappers over the Bun engine server's HTTP
  * endpoints (server/engine). Browser-only (uses fetch). Mirrors the vault client
- * (src/shared/lib/vault/client.ts): same base URL (the vault + engine server runs
- * on port 5274), same `unwrap` error contract.
+ * (src/shared/lib/vault/client.ts): same base URL (the vault + engine server
+ * share one process), same `unwrap` error contract.
  */
 
-const BASE_URL = import.meta.env.VITE_VAULT_API ?? "http://localhost:5274";
+import { VAULT_API as BASE_URL } from "@/shared/lib/vault/base-url";
 
 /** A non-2xx response carries `{ error }` JSON; surface it as an Error. */
 async function unwrap<T>(res: Response): Promise<T> {
