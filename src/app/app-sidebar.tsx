@@ -17,6 +17,7 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/shared/components/ui/sidebar";
+import { usePublicConfig } from "@/shared/lib/config/use-config";
 import { Settings } from "lucide-react";
 import { Fragment } from "react";
 import { NavLink, useLocation } from "react-router-dom";
@@ -29,12 +30,13 @@ function isItemActive(pathname: string, to: string): boolean {
 export function AppSidebar() {
   const { pathname } = useLocation();
   const { count: inboxCount } = useInbox();
+  const { displayName } = usePublicConfig();
 
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="h-14 justify-center border-b border-sidebar-border px-3">
         <span className="truncate text-base font-semibold tracking-tight group-data-[collapsible=icon]:hidden">
-          Arel OS
+          {displayName}
         </span>
       </SidebarHeader>
 
