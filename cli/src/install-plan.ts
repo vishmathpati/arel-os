@@ -30,6 +30,27 @@ export function normalizeDisplayName(input: string): string {
   return trimmed.length > 0 ? trimmed : DEFAULTS.displayName;
 }
 
+/**
+ * Slugify a chosen display name into a safe directory-name fragment:
+ * lowercase, spaces/unsafe chars -> dashes, collapsed and trimmed. Falls back
+ * to the fixed default install dir's basename when the slug would be empty
+ * (e.g. a name made entirely of emoji/punctuation).
+ */
+export function slugifyName(input: string): string {
+  return input
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+/** Default install dir derived from the chosen display name, e.g. "My Brain" -> "~/my-brain". */
+export function defaultInstallDirFor(displayName: string): string {
+  const slug = slugifyName(displayName);
+  if (!slug) return DEFAULTS.installDir;
+  return `~/${slug}`;
+}
+
 export interface InstallDirCheck {
   path: string;
   parentWritable: boolean;

@@ -5,9 +5,11 @@ import { tmpdir, homedir } from "node:os";
 import { join } from "node:path";
 import {
   checkInstallDir,
+  defaultInstallDirFor,
   defaultVaultPath,
   normalizeDisplayName,
   resolvePort,
+  slugifyName,
   toArelConfig,
 } from "../src/install-plan.js";
 import { deriveServiceLabels } from "../src/paths.js";
@@ -22,6 +24,23 @@ test("normalizeDisplayName trims and falls back to default on empty input", () =
 test("defaultVaultPath appends /vault and expands ~", () => {
   assert.equal(defaultVaultPath("~/ArelOS"), join(homedir(), "ArelOS", "vault"));
   assert.equal(defaultVaultPath("/tmp/x"), "/tmp/x/vault");
+});
+
+test("slugifyName lowercases, dashes spaces, and strips unsafe chars", () => {
+  assert.equal(slugifyName("My Brain"), "my-brain");
+  assert.equal(slugifyName("  Vish's OS!! "), "vish-s-os");
+  assert.equal(slugifyName("Arel_OS 2.0"), "arel-os-2-0");
+  assert.equal(slugifyName("💫💫"), "");
+});
+
+test("defaultInstallDirFor derives ~/<slug> from the chosen name", () => {
+  assert.equal(defaultInstallDirFor("My Brain"), "~/my-brain");
+  assert.equal(defaultInstallDirFor("Arel OS"), "~/arel-os");
+});
+
+test("defaultInstallDirFor falls back to the fixed default when the name slugifies to empty", () => {
+  assert.equal(defaultInstallDirFor("💫💫"), "~/ArelOS");
+  assert.equal(defaultInstallDirFor("   "), "~/ArelOS");
 });
 
 test("checkInstallDir flags a non-empty dir that isn't a prior arelos checkout", () => {
@@ -75,6 +94,19 @@ test("resolvePort suggests the next free port when the requested one is taken", 
 
 test("resolvePort rejects an invalid port", async () => {
   await assert.rejects(() => resolvePort(80), /invalid/);
+});
+
+test("resolvePort probes the standard default and proposes a free port as the default when occupied (field-test fix: pre-filled prompt default must never be an occupied port)", async () => {
+  const server = createServer();
+  await new Promise<void>((resolve) => server.listen(1347, "127.0.0.1", resolve));
+  try {
+    const res = await resolvePort(1347);
+    assert.equal(res.wasFree, false);
+    assert.ok(res.resolved !== 1347, "the computed default must not be the occupied standard port");
+    assert.ok(res.resolved > 1347);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
 });
 
 test("toArelConfig expands ~ in installDir/vaultPath and stamps version 1", () => {

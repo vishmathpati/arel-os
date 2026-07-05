@@ -13,10 +13,12 @@ import { runStreaming } from "./exec.js";
 import { waitForHealthy } from "./health.js";
 import {
   checkInstallDir,
+  defaultInstallDirFor,
   defaultVaultPath,
   DEFAULTS,
   normalizeDisplayName,
   resolvePort,
+  slugifyName,
   toArelConfig,
   type InstallAnswers,
 } from "./install-plan.js";
@@ -215,7 +217,7 @@ export async function runInstall(argv: string[], flags: InstallFlags): Promise<n
   }
   p.outro(
     [
-      pc.green(`Arel OS is running at ${url}`),
+      pc.green(`${answers.displayName} is running at ${url}`),
       "Runs 24/7 in the background.",
       "Next: arelos status · arelos logs · arelos update · arelos uninstall",
     ].join("\n"),
@@ -235,7 +237,7 @@ async function checkGit(): Promise<boolean> {
 async function collectAnswers(flags: InstallFlags): Promise<InstallAnswers | null> {
   if (flags.yes) {
     const displayName = normalizeDisplayName(flags.displayName ?? DEFAULTS.displayName);
-    const installDir = flags.installDir ?? DEFAULTS.installDir;
+    const installDir = flags.installDir ?? defaultInstallDirFor(displayName);
     const vaultPath = flags.vaultPath ?? defaultVaultPath(installDir);
     const webPortReq = flags.webPort ?? DEFAULTS.webPort;
     const vaultPortReq = flags.vaultPort ?? DEFAULTS.vaultPort;
@@ -257,27 +259,43 @@ async function collectAnswers(flags: InstallFlags): Promise<InstallAnswers | nul
     defaultValue: DEFAULTS.displayName,
   });
   if (p.isCancel(displayNameRaw)) return null;
+  const displayName = normalizeDisplayName(String(displayNameRaw));
+  const installDirDefault = defaultInstallDirFor(displayName);
 
   // Step 3 — Install location.
   let installDir = "";
   for (;;) {
     const raw = await p.text({
-      message: "Where should Arel OS be installed?",
-      placeholder: DEFAULTS.installDir,
-      defaultValue: DEFAULTS.installDir,
+      message: `Where should ${displayName} be installed?`,
+      placeholder: installDirDefault,
+      defaultValue: installDirDefault,
     });
     if (p.isCancel(raw)) return null;
-    const check = checkInstallDir(String(raw || DEFAULTS.installDir));
+    const check = checkInstallDir(String(raw || installDirDefault));
     if (!check.parentWritable) {
       p.log.error(`Cannot write to ${check.path} — choose another location.`);
       continue;
     }
     if (check.nonEmpty && !check.isPriorArelosInstall) {
-      const proceed = await p.confirm({
-        message: `${check.path} exists and is not empty. Use it anyway?`,
-        initialValue: false,
+      const subfolder = `${check.path}/${slugifyName(displayName) || "arelos"}`;
+      const choice = await p.select({
+        message: `${check.path} already has files in it, so installing there would fail.`,
+        options: [
+          { value: "subfolder", label: `Install into ${subfolder} instead`, hint: "recommended" },
+          { value: "different", label: "Choose a different location" },
+          { value: "cancel", label: "Cancel install" },
+        ],
+        initialValue: "subfolder",
       });
-      if (p.isCancel(proceed) || !proceed) continue;
+      if (p.isCancel(choice) || choice === "cancel") return null;
+      if (choice === "different") continue;
+      const subCheck = checkInstallDir(subfolder);
+      if (subCheck.nonEmpty && !subCheck.isPriorArelosInstall) {
+        p.log.error(`${subCheck.path} also already has files in it — choose another location.`);
+        continue;
+      }
+      installDir = subCheck.path;
+      break;
     }
     installDir = check.path;
     break;
@@ -298,7 +316,7 @@ async function collectAnswers(flags: InstallFlags): Promise<InstallAnswers | nul
   if (vaultPort === null) return null;
 
   return {
-    displayName: normalizeDisplayName(String(displayNameRaw)),
+    displayName,
     installDir,
     vaultPath: String(vaultRaw || defaultVaultPath(installDir)),
     webPort,
