@@ -1,0 +1,32 @@
+{
+  "name": "rlo",
+  "version": "0.1.0",
+  "description": "Installer and service manager for a self-hosted Arel OS on macOS.",
+  "type": "module",
+  "bin": {
+    "rlo": "dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "os": [
+    "darwin"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "node --test --experimental-strip-types test/*.test.ts",
+    "test:built": "npm run build && node --test dist-test/*.test.js"
+  },
+  "dependencies": {
+    "@clack/prompts": "^0.9.0",
+    "picocolors": "^1.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.7.0"
+  },
+  "license": "MIT"
+}
