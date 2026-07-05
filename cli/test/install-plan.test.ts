@@ -10,6 +10,7 @@ import {
   resolvePort,
   toArelConfig,
 } from "../src/install-plan.js";
+import { deriveServiceLabels } from "../src/paths.js";
 import { createServer } from "node:net";
 
 test("normalizeDisplayName trims and falls back to default on empty input", () => {
@@ -89,4 +90,5 @@ test("toArelConfig expands ~ in installDir/vaultPath and stamps version 1", () =
   assert.equal(config.vaultPath, join(homedir(), "arelos-test-vault"));
   assert.equal(config.webPort, 1400);
   assert.equal(config.vaultPort, 5300);
+  assert.deepEqual(config.serviceLabels, deriveServiceLabels(join(homedir(), "arelos-test-install")));
 });

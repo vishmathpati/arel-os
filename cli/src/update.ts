@@ -5,7 +5,7 @@
 import pc from "picocolors";
 import { ensureBun } from "./bun-setup.js";
 import type { ArelConfig } from "./config.js";
-import { readConfig } from "./config.js";
+import { readConfig, resolveServiceLabels } from "./config.js";
 import { runStreaming } from "./exec.js";
 import { waitForHealthy } from "./health.js";
 import { pullLatest } from "./repo.js";
@@ -54,8 +54,9 @@ export async function runUpdate(config: ArelConfig): Promise<number> {
     console.warn(pc.yellow("bun run build failed — keeping old dist/. The web service will keep serving it."));
   }
 
-  installServiceFiles(config.installDir);
-  const bootstrap = await bootstrapAndStart();
+  const labels = resolveServiceLabels(config);
+  installServiceFiles(config.installDir, labels);
+  const bootstrap = await bootstrapAndStart(labels);
   for (const e of bootstrap.errors) console.error(pc.yellow(e));
 
   console.log("Restarting services and re-checking health…");

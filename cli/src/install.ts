@@ -24,7 +24,8 @@ import { bootstrapAndStart, installServiceFiles } from "./services.js";
 import { cloneRepo, isGitCheckout } from "./repo.js";
 import { ensureEnvFile, ensureLogsDir, scaffoldVault, TemplateVaultMissingError } from "./scaffold.js";
 import { runRepairMenu } from "./repair.js";
-import { configPath } from "./paths.js";
+import { configPath, deriveServiceLabels } from "./paths.js";
+import { listLoadedArelosLabels } from "./launchd.js";
 
 export async function runInstall(argv: string[], flags: InstallFlags): Promise<number> {
   // Step 0 — Preflight & existing-install detection.
@@ -155,11 +156,32 @@ export async function runInstall(argv: string[], flags: InstallFlags): Promise<n
     return 0;
   }
 
+  // Step 10.5 — Preflight: check for a same-slug reinstall vs. an unrelated
+  // Arel OS install already holding other com.arelos.* labels.
+  const labels = config.serviceLabels ?? deriveServiceLabels(installDir);
+  const loadedLabels = await listLoadedArelosLabels();
+  const oursAlreadyLoaded = loadedLabels.filter((l) => l === labels.web || l === labels.vault);
+  const othersLoaded = loadedLabels.filter((l) => l !== labels.web && l !== labels.vault);
+  if (oursAlreadyLoaded.length > 0) {
+    log(
+      flags.yes,
+      `Services for this install dir are already loaded (${oursAlreadyLoaded.join(", ")}) — will bootout and re-bootstrap.`,
+    );
+  }
+  if (othersLoaded.length > 0) {
+    console.error(
+      pc.yellow(
+        `Another Arel OS install is already running with its own services (${othersLoaded.join(", ")}). ` +
+          "This install uses its own unique labels, so it will not disturb that install.",
+      ),
+    );
+  }
+
   // Step 11 — Generate + bootstrap launchd services.
   const svcSpin = spinner(flags.yes);
   svcSpin.start("Registering background services…");
-  installServiceFiles(installDir);
-  const bootstrapResult = await bootstrapAndStart();
+  installServiceFiles(installDir, labels);
+  const bootstrapResult = await bootstrapAndStart(labels);
   if (bootstrapResult.errors.length > 0) {
     svcSpin.stop("Service registration had errors.");
     for (const e of bootstrapResult.errors) console.error(pc.yellow(e));

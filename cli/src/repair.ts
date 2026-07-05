@@ -6,6 +6,7 @@
 import * as p from "@clack/prompts";
 import pc from "picocolors";
 import type { ArelConfig } from "./config.js";
+import { resolveServiceLabels } from "./config.js";
 import { runUpdate } from "./update.js";
 import { waitForHealthy } from "./health.js";
 import { bootstrapAndStart, installServiceFiles } from "./services.js";
@@ -83,8 +84,9 @@ async function runRepair(existing: ArelConfig): Promise<number> {
   s.stop("Rebuilt.");
 
   s.start("Re-rendering and re-bootstrapping services…");
-  installServiceFiles(existing.installDir);
-  const bootstrap = await bootstrapAndStart();
+  const labels = resolveServiceLabels(existing);
+  installServiceFiles(existing.installDir, labels);
+  const bootstrap = await bootstrapAndStart(labels);
   s.stop(bootstrap.errors.length ? "Services re-registered with warnings." : "Services re-registered.");
   for (const e of bootstrap.errors) console.error(pc.yellow(e));
 

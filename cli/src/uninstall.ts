@@ -8,9 +8,9 @@
 import * as p from "@clack/prompts";
 import pc from "picocolors";
 import { existsSync, rmSync, unlinkSync } from "node:fs";
-import { readConfig } from "./config.js";
+import { readConfig, resolveServiceLabels } from "./config.js";
 import { bootoutService } from "./launchd.js";
-import { VAULT_LABEL, WEB_LABEL, plistPath, configPath } from "./paths.js";
+import { plistPath, configPath } from "./paths.js";
 
 /**
  * Pure gate: vault is deleted iff confirmed AND the typed word is exactly
@@ -37,9 +37,10 @@ export async function uninstallCommand(): Promise<number> {
 
   p.intro(pc.bold("Uninstall Arel OS"));
 
-  await bootoutService(WEB_LABEL);
-  await bootoutService(VAULT_LABEL);
-  for (const label of [WEB_LABEL, VAULT_LABEL] as const) {
+  const labels = resolveServiceLabels(config);
+  await bootoutService(labels.web);
+  await bootoutService(labels.vault);
+  for (const label of [labels.web, labels.vault]) {
     const path = plistPath(label);
     if (existsSync(path)) unlinkSync(path);
   }

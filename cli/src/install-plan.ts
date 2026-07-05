@@ -6,7 +6,7 @@
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { accessSync, constants } from "node:fs";
 import { dirname } from "node:path";
-import { expandHome } from "./paths.js";
+import { deriveServiceLabels, expandHome, type ServiceLabels } from "./paths.js";
 import { findFreePort, isValidPort } from "./ports.js";
 
 export interface InstallAnswers {
@@ -87,13 +87,16 @@ export function toArelConfig(answers: InstallAnswers): {
   vaultPath: string;
   webPort: number;
   vaultPort: number;
+  serviceLabels: ServiceLabels;
 } {
+  const installDir = expandHome(answers.installDir);
   return {
     version: 1,
     displayName: answers.displayName,
-    installDir: expandHome(answers.installDir),
+    installDir,
     vaultPath: expandHome(answers.vaultPath),
     webPort: answers.webPort,
     vaultPort: answers.vaultPort,
+    serviceLabels: deriveServiceLabels(installDir),
   };
 }

@@ -3,11 +3,10 @@
  * git revision / behind-origin check.
  */
 import pc from "picocolors";
-import { readConfig } from "./config.js";
+import { readConfig, resolveServiceLabels } from "./config.js";
 import { checkVaultHealth, checkWebHealth } from "./health.js";
 import { getServiceStatus } from "./launchd.js";
 import { currentRevision, isBehindOrigin } from "./repo.js";
-import { VAULT_LABEL, WEB_LABEL } from "./paths.js";
 
 export async function statusCommand(): Promise<number> {
   const config = readConfig();
@@ -23,9 +22,10 @@ export async function statusCommand(): Promise<number> {
   console.log(`  Vault port:  ${config.vaultPort}`);
   console.log("");
 
+  const labels = resolveServiceLabels(config);
   const [webSvc, vaultSvc, webHealth, vaultHealth, rev, behind] = await Promise.all([
-    getServiceStatus(WEB_LABEL),
-    getServiceStatus(VAULT_LABEL),
+    getServiceStatus(labels.web),
+    getServiceStatus(labels.vault),
     checkWebHealth(config.webPort),
     checkVaultHealth(config.vaultPort),
     currentRevision(config.installDir),
