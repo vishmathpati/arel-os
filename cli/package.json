@@ -29,5 +29,14 @@
     "@types/node": "^20.0.0",
     "typescript": "^5.7.0"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vishmathpati/arel-os.git",
+    "directory": "cli"
+  },
+  "homepage": "https://github.com/vishmathpati/arel-os#readme",
+  "bugs": {
+    "url": "https://github.com/vishmathpati/arel-os/issues"
+  }
 }
