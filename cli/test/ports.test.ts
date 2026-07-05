@@ -42,6 +42,31 @@ test("isPortFree reports false while an IPv6-only server is listening on the por
   }
 });
 
+test("isPortFree reports false while a WILDCARD server is listening on the port (field bug 4: net.createServer().listen(port) with no host, exactly the failing shape — a live Bun server on *:5274 was reported free)", async () => {
+  const server = createServer();
+  // No host argument at all — this is the real wildcard-bind shape used by
+  // Bun.serve() and by net servers that omit a hostname.
+  await new Promise<void>((resolve) => server.listen(58234, resolve));
+  try {
+    const free = await isPortFree(58234);
+    assert.equal(free, false, "a wildcard listener must make the port count as occupied");
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test("findFreePort scans upward past a WILDCARD-bound taken port", async () => {
+  const server = createServer();
+  await new Promise<void>((resolve) => server.listen(58235, resolve));
+  try {
+    const found = await findFreePort(58235);
+    assert.ok(found > 58235, `expected a port above 58235, got ${found}`);
+    assert.equal(await isPortFree(found), true);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
 test("findFreePort scans upward past an IPv6-only taken port", async () => {
   const server = createServer();
   await new Promise<void>((resolve) => server.listen(58236, "::1", resolve));
