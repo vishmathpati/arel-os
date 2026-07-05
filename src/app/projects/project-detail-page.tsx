@@ -391,7 +391,7 @@ export function ProjectDetailPage() {
 
       {/* Bottom block (D64): the Notes editor moved here, after Tasks + Resources.
           Software → a tabbed dashboard (Notes is the final tab); standard → just
-          the editor. The full project-page redesign is deferred (Vish). */}
+          the editor. The full project-page redesign is deferred. */}
       <section className="mt-8">
         {project.kind === "software" ? (
           isLinkedSoftware ? (

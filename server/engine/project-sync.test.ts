@@ -25,13 +25,13 @@ const PRIOR: ProjectSnapshot = assembleSnapshot(
     },
     designFeel: {
       stack: [{ name: "React", role: "frontend" }],
-      brand: { name: "Snapfinder", tagline: null, audience: null, problem: null },
+      brand: { name: "Acme", tagline: null, audience: null, problem: null },
       direction: "clean",
       principles: ["fast"],
     },
   },
   {
-    project: "snapfinder",
+    project: "acme",
     syncedAt: "2026-06-23T00:00:00.000Z",
     repoPresent: true,
     manifest: [{ path: "agents/STATUS.md", sha256: "old", mtime: "", bytes: 10 }],
@@ -52,7 +52,7 @@ const ALL_CONTENTS: ProtocolFile[] = [
 
 describe("buildSynthesisInput", () => {
   it("full synthesis (no prior) sends every doc, no merge base", () => {
-    const { system, prompt } = buildSynthesisInput("snapfinder", null, {
+    const { system, prompt } = buildSynthesisInput("acme", null, {
       contents: ALL_CONTENTS,
       changed: ALL_CONTENTS.map((c) => c.path),
     });
@@ -65,7 +65,7 @@ describe("buildSynthesisInput", () => {
   });
 
   it("delta re-sync sends only changed docs + the merge base, not unchanged docs", () => {
-    const { system, prompt } = buildSynthesisInput("snapfinder", PRIOR, {
+    const { system, prompt } = buildSynthesisInput("acme", PRIOR, {
       contents: ALL_CONTENTS,
       changed: ["agents/STATUS.md"],
     });
@@ -83,7 +83,7 @@ describe("buildSynthesisInput", () => {
   });
 
   it("delta merge base excludes design tokens (never model-authored)", () => {
-    const { prompt } = buildSynthesisInput("snapfinder", PRIOR, {
+    const { prompt } = buildSynthesisInput("acme", PRIOR, {
       contents: ALL_CONTENTS,
       changed: ["agents/STATUS.md"],
     });
@@ -94,7 +94,7 @@ describe("buildSynthesisInput", () => {
   });
 
   it("a changed path with no matching doc (removed) still appears in the changed list", () => {
-    const { prompt } = buildSynthesisInput("snapfinder", PRIOR, {
+    const { prompt } = buildSynthesisInput("acme", PRIOR, {
       contents: ALL_CONTENTS,
       changed: ["agents/STATUS.md", "agents/ROADMAP.md"], // ROADMAP removed (absent from contents)
     });

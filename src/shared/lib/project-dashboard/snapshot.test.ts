@@ -3,7 +3,7 @@ import { normalizeSnapshot, parseSnapshot } from "./snapshot";
 
 const FULL = {
   meta: {
-    project: "snapfinder",
+    project: "acme",
     syncedAt: "2026-06-23T10:00:00.000Z",
     state: "healthy",
     repoPresent: true,
@@ -12,7 +12,7 @@ const FULL = {
     { path: "agents/STATUS.md", sha256: "abc", mtime: "2026-06-20T00:00:00.000Z", bytes: 120 },
   ],
   overview: {
-    headline: "Snapfinder is in beta",
+    headline: "Acme is in beta",
     state: "watch",
     current: "Polishing onboarding",
     recent: [{ title: "Shipped auth", detail: "OAuth + email" }, "Fixed a crash"],
@@ -32,7 +32,7 @@ const FULL = {
   },
   designFeel: {
     stack: [{ name: "React", role: "frontend" }],
-    brand: { name: "Snapfinder", tagline: "find it fast" },
+    brand: { name: "Acme", tagline: "find it fast" },
     tokens: {
       light: [{ name: "bg", value: "#fff" }],
       dark: [],
@@ -52,7 +52,7 @@ describe("parseSnapshot", () => {
     const body = `---\ntype: project-snapshot\n---\n\n\`\`\`json\n${JSON.stringify(FULL)}\n\`\`\`\n`;
     const snap = parseSnapshot(body);
     expect(snap).not.toBeNull();
-    expect(snap?.meta.project).toBe("snapfinder");
+    expect(snap?.meta.project).toBe("acme");
     expect(snap?.overview.recent).toHaveLength(2);
     // A bare string in recent[] coerces to a titled item.
     expect(snap?.overview.recent[1]).toEqual({ title: "Fixed a crash" });
@@ -61,7 +61,7 @@ describe("parseSnapshot", () => {
 
   it("falls back to the first balanced object when there is no fence", () => {
     const snap = parseSnapshot(`some preamble ${JSON.stringify(FULL)} trailing`);
-    expect(snap?.meta.project).toBe("snapfinder");
+    expect(snap?.meta.project).toBe("acme");
   });
 
   it("returns null for an empty or unparseable body", () => {

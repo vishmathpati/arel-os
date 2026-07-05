@@ -1,6 +1,6 @@
 /**
- * GuidePage — teaches Vish when to use each container and helps him decide
- * where something goes.
+ * GuidePage — teaches the user when to use each container and helps them
+ * decide where something goes.
  *
  * Three sections:
  *  1. Decision wizard — step-through Q&A arriving at a verdict + navigate button
@@ -64,7 +64,7 @@ const VERDICTS: Record<string, Verdict> = {
   },
   "verdict-area": {
     name: "Area (or Sub-area)",
-    why: "A permanent home with no deadline. Ventures like Snapfinder or AgriT are Sub-areas nested under Business.",
+    why: "A permanent home with no deadline. Ventures like a side business or agency are Sub-areas nested under Business.",
     navigateTo: "/areas/business",
     navigateLabel: "Go to Business",
   },
@@ -169,14 +169,14 @@ export function GuidePage() {
                   icon={Briefcase}
                   name="Sub-area"
                   test="A venture nested inside Business. Max 2 levels deep."
-                  example="Snapfinder, AgriT agency, TCLDB"
+                  example="Side project, freelance agency, client venture"
                   notWhen="It's a top-level life domain — those are Areas."
                 />
                 <ReferenceCard
                   icon={Target}
                   name="Quest"
                   test="A goal with a deadline that spans several projects."
-                  example='"Launch Snapfinder v1 by Sept", "Get fit in 3 months"'
+                  example='"Launch the app by Sept", "Get fit in 3 months"'
                   notWhen="There's no real deadline, or it's single-deliverable work (use a Project)."
                 />
                 <ReferenceCard

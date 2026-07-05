@@ -23,7 +23,7 @@ const AUTHORED = {
   },
   designFeel: {
     stack: [{ name: "React", role: "frontend" }],
-    brand: { name: "Snapfinder", tagline: null, audience: null, problem: null },
+    brand: { name: "Acme", tagline: null, audience: null, problem: null },
     direction: "clean",
     principles: ["fast"],
   },
@@ -59,7 +59,7 @@ describe("AuthoredSnapshotSchema", () => {
 
 describe("assembleSnapshot", () => {
   const snap = assembleSnapshot(AUTHORED, {
-    project: "snapfinder",
+    project: "acme",
     syncedAt: "2026-06-24T09:00:00.000Z",
     repoPresent: true,
     manifest: MANIFEST,
@@ -74,7 +74,7 @@ describe("assembleSnapshot", () => {
   });
 
   it("stamps server-set meta and derives meta.state from overview.state", () => {
-    expect(snap.meta.project).toBe("snapfinder");
+    expect(snap.meta.project).toBe("acme");
     expect(snap.meta.syncedAt).toBe("2026-06-24T09:00:00.000Z");
     expect(snap.meta.repoPresent).toBe(true);
     expect(snap.meta.state).toBe("watch"); // one source of truth: overview.state
