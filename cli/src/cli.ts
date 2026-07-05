@@ -10,10 +10,11 @@ if (process.platform !== "darwin") {
   process.exit(1);
 }
 
-import { parseInstallFlags, parseLogsFlags } from "./cli-args.js";
+import { parseInstallFlags, parseLogsFlags, parsePortsFlags } from "./cli-args.js";
 import { runInstall } from "./install.js";
 import { listCommand } from "./list.js";
 import { logsCommand } from "./logs.js";
+import { portsCommand } from "./ports-command.js";
 import { statusCommand } from "./status.js";
 import { uninstallCommand } from "./uninstall.js";
 import { updateCommand } from "./update.js";
@@ -30,7 +31,7 @@ async function main(): Promise<number> {
   // rather than a subcommand name — both mean "install". Anything else in
   // the known set consumes its name as the subcommand; everything after it
   // is passed through as that subcommand's own args.
-  const knownSubcommands = new Set(["install", "status", "update", "uninstall", "logs", "list"]);
+  const knownSubcommands = new Set(["install", "status", "update", "uninstall", "logs", "list", "ports"]);
   const firstIsFlag = argv.length === 0 || argv[0].startsWith("-");
   const firstIsKnown = argv.length > 0 && knownSubcommands.has(argv[0]);
 
@@ -57,6 +58,8 @@ async function main(): Promise<number> {
       return uninstallCommand(nameArgFrom(rest));
     case "logs":
       return logsCommand(parseLogsFlags(rest), logsNameArgFrom(rest));
+    case "ports":
+      return portsCommand(parsePortsFlags(rest), nameArgFrom(rest));
     default:
       console.error(`Unknown command: ${subcommand}\n`);
       printHelp();
@@ -97,6 +100,7 @@ Usage:
   arelos update [name]             git pull + rebuild + restart
   arelos uninstall [name]          Stop services, optionally remove install dir / vault
   arelos logs [name] [web|vault]   Tail service logs (-f to follow, -n <N> for line count)
+  arelos ports [name]              Change the web/vault ports (interactive, or via flags below)
 
 [name] is only needed when you have more than one install; omit it with a
 single install, or you'll be prompted to choose interactively.
@@ -110,6 +114,10 @@ Install flags (non-interactive):
   --vault-port <port>
   --no-service              Skip launchd bootstrap (for dry runs / development)
   --local-repo <path>       Use a local path instead of cloning from GitHub
+
+Ports flags (non-interactive):
+  --web-port <port>         New web port (omit to keep current)
+  --vault-port <port>       New vault port (omit to keep current)
 `);
 }
 

@@ -68,6 +68,21 @@ export function parseInstallFlags(argv: string[]): InstallFlags {
   return flags;
 }
 
+export interface PortsFlags {
+  webPort: number | null;
+  vaultPort: number | null;
+}
+
+export function parsePortsFlags(argv: string[]): PortsFlags {
+  const flags: PortsFlags = { webPort: null, vaultPort: null };
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg === "--web-port") flags.webPort = Number(argv[++i]);
+    else if (arg === "--vault-port") flags.vaultPort = Number(argv[++i]);
+  }
+  return flags;
+}
+
 export interface LogsFlags {
   which: "web" | "vault" | "both";
   follow: boolean;
