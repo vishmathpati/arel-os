@@ -167,6 +167,30 @@ async function checkModel(slug: string): Promise<DependencyHealth> {
   }
 }
 
+/**
+ * Onboarding AI-key gate validation (spec §5.2): a cheap, real ping through the
+ * gateway client right after a key is written to `.env`, so the user gets an
+ * honest pass/fail before leaving the wizard. Reuses the same
+ * `gateway.getAvailableModels()` call `checkModel` uses (lists the model
+ * catalog — no generation, no token spend) but always bypasses the cache since
+ * we just changed the key `modelMap`'s cache would otherwise mask.
+ */
+export async function validateGatewayKey(): Promise<{ ok: boolean; detail: string }> {
+  modelCatalog = null; // force a fresh call — the cached catalog may predate the new key
+  try {
+    const map = await modelMap();
+    return {
+      ok: true,
+      detail:
+        map.size > 0
+          ? "Your key works — recipes can run."
+          : "Key accepted, but no models were returned.",
+    };
+  } catch {
+    return { ok: false, detail: "That key didn't validate. Double-check and try again." };
+  }
+}
+
 /** Currency rates (web-fetch): is the exchange-rate service reachable? */
 async function checkCurrency(): Promise<DependencyHealth> {
   const base = { key: "currency", label: "Currency rates", checkedAt: nowIso() };

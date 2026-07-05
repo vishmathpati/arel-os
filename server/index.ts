@@ -11,6 +11,8 @@
  *   GET  /vault/list?dir=REL           → { dir, entries }
  *   POST /vault/write   { path, frontmatter, body } → { path, frontmatter }
  *   POST /vault/delete  { path }       → { archivedPath, deleted_from }
+ *   POST /vault/env     { keys: { KEY: value } } → { ok, keysSet }  (onboarding AI gate, §5)
+ *   GET  /vault/env/validate            → { ok, detail }  (cheap gateway ping)
  *
  * Arel Clipper ingest (Ch17 — the receiving end for the Chrome extension):
  *   POST /inbox/clip    <ClipperPayload> → { path, frontmatter }   (201)
@@ -29,13 +31,14 @@ import { inboxPath, mediaPath } from "../src/shared/lib/vault/paths.ts";
 import { loadConfig } from "./config.ts";
 import { type EngineConfig, readEngineConfig, writeEngineConfig } from "./engine/config.ts";
 import { runRecipe } from "./engine/engine.ts";
-import { getRecipeHealth } from "./engine/health.ts";
+import { getRecipeHealth, validateGatewayKey } from "./engine/health.ts";
 import { listRecipes } from "./engine/list.ts";
 import { PROTOCOL_PATHS, readProtocol, readProtocolFileContent } from "./engine/project-read.ts";
 import { repoPathForSlug } from "./engine/project-repos.ts";
 import { readRunRecords } from "./engine/runlog.ts";
 import { nextDue, parseTrigger } from "./engine/schedule.ts";
 import { mergeSchedulerState, readSchedulerState } from "./engine/scheduler-state.ts";
+import { DisallowedEnvKeyError, writeEnvKeys } from "./env.ts";
 import {
   FocusBridgeError,
   readFocusResult,
@@ -74,6 +77,7 @@ function errorResponse(err: unknown): Response {
   if (err instanceof VaultPathError) return json({ error: err.message }, 403);
   if (err instanceof FocusBridgeError) return json({ error: err.message }, 400);
   if (err instanceof VaultNotFoundError) return json({ error: err.message }, 404);
+  if (err instanceof DisallowedEnvKeyError) return json({ error: err.message }, 400);
   const message = err instanceof Error ? err.message : "Internal error";
   return json({ error: message }, 500);
 }
@@ -91,6 +95,10 @@ interface DeleteBody {
 interface RunBody {
   name?: string;
   input?: string;
+}
+
+interface EnvBody {
+  keys?: Record<string, unknown>;
 }
 
 /** Maps a focus command name to its bridge filename suffix (contract §5). */
@@ -145,6 +153,30 @@ async function handle(req: Request): Promise<Response> {
       const data = (await req.json()) as DeleteBody;
       if (!data.path) return json({ error: "Missing 'path'" }, 400);
       return json(await softDeleteVaultFile(data.path));
+    }
+
+    // ── Onboarding AI-key gate (spec §5) ───────────────────────────────────
+    // Upserts allowlisted keys into `.env` at the install root (never the
+    // vault, never a request-supplied path). Values are NEVER echoed back —
+    // the response carries only the key names that were written.
+    if (req.method === "POST" && pathname === "/vault/env") {
+      const data = (await req.json()) as EnvBody;
+      if (!data.keys || typeof data.keys !== "object" || Array.isArray(data.keys)) {
+        return json({ error: "Missing 'keys' object" }, 400);
+      }
+      const entries: Record<string, string> = {};
+      for (const [key, value] of Object.entries(data.keys)) {
+        if (typeof value !== "string") return json({ error: `'${key}' must be a string` }, 400);
+        entries[key] = value;
+      }
+      const { keysSet } = await writeEnvKeys(entries);
+      return json({ ok: true, keysSet });
+    }
+
+    // Cheap, real gateway ping to confirm the just-written key works — no
+    // generation, no meaningful token spend (lists the model catalog).
+    if (req.method === "GET" && pathname === "/vault/env/validate") {
+      return json(await validateGatewayKey());
     }
 
     // ── Arel Clipper ingest (Ch17) ─────────────────────────────────────────
