@@ -85,7 +85,17 @@ export async function writeEnvKeys(keys: Record<string, string>): Promise<{ keys
   );
 }
 
-/** GET /vault/env/validate — a cheap, real gateway ping to confirm a just-saved key works. */
-export async function validateEnvKey(): Promise<{ ok: boolean; detail: string }> {
+/** The three honest states a key-validation probe can land in — see server/engine/health.ts. */
+export type GatewayKeyValidation =
+  | { status: "ok"; detail: string }
+  | { status: "invalid-key"; detail: string }
+  | { status: "unreachable"; detail: string };
+
+/**
+ * GET /vault/env/validate — a genuinely authenticated probe (a minimal real
+ * completion) to confirm a just-saved key works. Distinguishes a bad key
+ * (`invalid-key`) from "couldn't tell" (`unreachable`) — never a false "ok".
+ */
+export async function validateEnvKey(): Promise<GatewayKeyValidation> {
   return unwrap(await fetch(`${BASE_URL}/vault/env/validate`));
 }

@@ -10,7 +10,8 @@
  * share a dependency doesn't hammer the same probe.
  */
 
-import { gateway } from "@ai-sdk/gateway";
+import { GatewayError, gateway } from "@ai-sdk/gateway";
+import { APICallError, generateText } from "ai";
 import { listVaultDir } from "../io.ts";
 import { readEngineConfig } from "./config.ts";
 import { loadRecipe } from "./recipe.ts";
@@ -167,28 +168,87 @@ async function checkModel(slug: string): Promise<DependencyHealth> {
   }
 }
 
+/** Onboarding AI-key gate validation result — three honest, distinct states (no fake positives). */
+export type GatewayKeyValidation =
+  | { status: "ok"; detail: string }
+  | { status: "invalid-key"; detail: string }
+  | { status: "unreachable"; detail: string };
+
 /**
- * Onboarding AI-key gate validation (spec §5.2): a cheap, real ping through the
- * gateway client right after a key is written to `.env`, so the user gets an
- * honest pass/fail before leaving the wizard. Reuses the same
- * `gateway.getAvailableModels()` call `checkModel` uses (lists the model
- * catalog — no generation, no token spend) but always bypasses the cache since
- * we just changed the key `modelMap`'s cache would otherwise mask.
+ * Onboarding AI-key gate validation (spec §5.2): a genuinely authenticated probe
+ * right after a key is written to `.env`, so the user gets an honest pass/fail
+ * before leaving the wizard.
+ *
+ * `gateway.getAvailableModels()` (used by `checkModel` above) is NOT sufficient
+ * here — it succeeds even with a completely fake key (it just lists the public
+ * catalog, which requires no auth). This probe instead runs a minimal real
+ * completion (`generateText`, 1-word prompt, `maxOutputTokens: 8`) through the
+ * same Vercel AI Gateway client the Engine uses (see engine.ts) against the
+ * configured default model — the cheapest call that actually exercises auth.
+ *
+ * Errors are classified, not lumped together. Confirmed live against a fake
+ * key: the `ai` package's gateway wrapper (`wrapGatewayError` in
+ * ai/dist/index.mjs) rethrows a 401 from the gateway as a plain `Error` named
+ * `"GatewayAuthenticationError"` (dev) or `"GatewayError"` (prod) — it does
+ * NOT preserve `GatewayError`'s class/marker or a `statusCode`, so
+ * `GatewayError.isInstance()` returns false and `err.name` is the only signal.
+ * `GatewayForbiddenError`/`APICallError` statusCodes are also checked in case
+ * a future SDK version or a direct-provider route surfaces 401/403 differently.
+ *   - name/message matching an auth failure, a 401/403 statusCode, or a
+ *     missing-key load error → "invalid-key" — the key itself is bad.
+ *   - anything else (network, timeout, 5xx, unknown) → "unreachable" — we
+ *     couldn't tell either way, so we don't accuse the key of being wrong.
  */
-export async function validateGatewayKey(): Promise<{ ok: boolean; detail: string }> {
-  modelCatalog = null; // force a fresh call — the cached catalog may predate the new key
+export async function validateGatewayKey(): Promise<GatewayKeyValidation> {
+  let model: string;
   try {
-    const map = await modelMap();
-    return {
-      ok: true,
-      detail:
-        map.size > 0
-          ? "Your key works — recipes can run."
-          : "Key accepted, but no models were returned.",
-    };
+    const config = await readEngineConfig();
+    model = config.defaultModel || process.env.ARELOS_ENGINE_MODEL || "";
   } catch {
-    return { ok: false, detail: "That key didn't validate. Double-check and try again." };
+    model = process.env.ARELOS_ENGINE_MODEL ?? "";
   }
+  if (!model) {
+    return {
+      status: "unreachable",
+      detail: "No model is configured yet — set a default model before testing the key.",
+    };
+  }
+
+  try {
+    await generateText({
+      model,
+      prompt: "hi",
+      maxOutputTokens: 8,
+    });
+    return { status: "ok", detail: "Your key works — recipes can run." };
+  } catch (err) {
+    if (isInvalidKeyError(err)) {
+      return {
+        status: "invalid-key",
+        detail: "That key was rejected — double-check it and try again.",
+      };
+    }
+    return {
+      status: "unreachable",
+      detail: "Couldn't reach the AI service to test the key. Check your connection and try again.",
+    };
+  }
+}
+
+/** True when `err` represents an authentication failure — a rejected/missing key. */
+function isInvalidKeyError(err: unknown): boolean {
+  let statusCode: number | undefined;
+  if (GatewayError.isInstance(err)) statusCode = err.statusCode;
+  else if (APICallError.isInstance(err)) statusCode = err.statusCode;
+  if (statusCode === 401 || statusCode === 403) return true;
+
+  if (!(err instanceof Error)) return false;
+  // The gateway wrapper (ai/dist: wrapGatewayError) rethrows an auth failure as
+  // a bare Error named "GatewayAuthenticationError" (dev) / "GatewayError"
+  // (prod) with no statusCode — matched by name, confirmed live.
+  if (err.name === "GatewayAuthenticationError" || err.name === "AI_LoadAPIKeyError") return true;
+  if (err.name === "GatewayError" && /unauthenticat/i.test(err.message)) return true;
+  return false;
 }
 
 /** Currency rates (web-fetch): is the exchange-rate service reachable? */

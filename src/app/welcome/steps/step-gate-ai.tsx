@@ -1,21 +1,38 @@
 /**
  * Step 8 — GATE: AI / .env key (spec §3 Step 8, §5, §gates). Opt-in. Writes
  * `AI_GATEWAY_API_KEY` via the new `POST /vault/env` (allowlisted, fixed-path,
- * no-echo — see server/env.ts + server/index.ts) then runs a cheap real
- * validation ping (`GET /vault/env/validate`, which forces a fresh
- * `gateway.getAvailableModels()` call in server/engine/health.ts). The
- * password field is cleared immediately after submit regardless of outcome —
- * the value only ever lives in this component's state for the instant it
- * takes to POST it.
+ * no-echo — see server/env.ts + server/index.ts) then runs a genuinely
+ * authenticated validation probe (`GET /vault/env/validate`, a minimal real
+ * completion — see server/engine/health.ts). The result is one of three
+ * honest states: `ok` (key works), `invalid-key` (key was rejected), or
+ * `unreachable` (couldn't tell — network/service issue, not necessarily a bad
+ * key) — rendered distinctly so onboarding never claims a fake key "works".
+ * The password field is cleared immediately after submit regardless of
+ * outcome — the value only ever lives in this component's state for the
+ * instant it takes to POST it.
  */
 
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
-import { validateEnvKey, writeEnvKeys } from "@/shared/lib/vault/client";
+import { type GatewayKeyValidation, validateEnvKey, writeEnvKeys } from "@/shared/lib/vault/client";
 import { useState } from "react";
 
-type Validation = { ok: boolean; detail: string } | null;
+type Validation = GatewayKeyValidation | { status: "error"; detail: string } | null;
+
+const VALIDATION_STYLES: Record<string, string> = {
+  ok: "border-border bg-muted/40 text-foreground",
+  "invalid-key": "border-error/30 bg-error/5 text-error",
+  unreachable: "border-warning/30 bg-warning/5 text-warning",
+  error: "border-error/30 bg-error/5 text-error",
+};
+
+const VALIDATION_ICON: Record<string, string> = {
+  ok: "✅ ",
+  "invalid-key": "❌ ",
+  unreachable: "⚠️ ",
+  error: "❌ ",
+};
 
 export function StepGateAi({
   onNext,
@@ -42,7 +59,7 @@ export function StepGateAi({
       setValidation(result);
     } catch (err) {
       setValidation({
-        ok: false,
+        status: "error",
         detail: err instanceof Error ? err.message : "Couldn't save the key. Try again.",
       });
     } finally {
@@ -101,21 +118,17 @@ export function StepGateAi({
 
       {validation && (
         <p
-          className={`rounded-md border px-4 py-3 text-body ${
-            validation.ok
-              ? "border-border bg-muted/40 text-foreground"
-              : "border-error/30 bg-error/5 text-error"
-          }`}
+          className={`rounded-md border px-4 py-3 text-body ${VALIDATION_STYLES[validation.status]}`}
         >
-          {validation.ok ? "✅ " : "❌ "}
+          {VALIDATION_ICON[validation.status]}
           {validation.detail}
         </p>
       )}
 
       <div className="flex items-center gap-3 pt-2">
         <Button
-          variant={validation?.ok ? "default" : "outline"}
-          onClick={() => onNext({ accepted: true, validated: !!validation?.ok })}
+          variant={validation?.status === "ok" ? "default" : "outline"}
+          onClick={() => onNext({ accepted: true, validated: validation?.status === "ok" })}
           disabled={!saved}
         >
           Nice — continue →

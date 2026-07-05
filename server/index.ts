@@ -12,7 +12,8 @@
  *   POST /vault/write   { path, frontmatter, body } → { path, frontmatter }
  *   POST /vault/delete  { path }       → { archivedPath, deleted_from }
  *   POST /vault/env     { keys: { KEY: value } } → { ok, keysSet }  (onboarding AI gate, §5)
- *   GET  /vault/env/validate            → { ok, detail }  (cheap gateway ping)
+ *   GET  /vault/env/validate            → { status: ok|invalid-key|unreachable, detail }
+ *                                          (real generateText probe — see engine/health.ts)
  *
  * Arel Clipper ingest (Ch17 — the receiving end for the Chrome extension):
  *   POST /inbox/clip    <ClipperPayload> → { path, frontmatter }   (201)
@@ -173,8 +174,11 @@ async function handle(req: Request): Promise<Response> {
       return json({ ok: true, keysSet });
     }
 
-    // Cheap, real gateway ping to confirm the just-written key works — no
-    // generation, no meaningful token spend (lists the model catalog).
+    // A genuinely authenticated probe (minimal real completion, ~8 tokens) to
+    // confirm the just-written key actually works — see engine/health.ts for
+    // why gateway.getAvailableModels() is not sufficient (it succeeds even
+    // with a fake key). Returns one of three honest states: ok / invalid-key /
+    // unreachable — never a false "it works".
     if (req.method === "GET" && pathname === "/vault/env/validate") {
       return json(await validateGatewayKey());
     }
