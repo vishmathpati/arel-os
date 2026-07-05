@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseInstallFlags, parseLogsFlags } from "../src/cli-args.js";
+import { parseInstallFlags, parseLogsFlags, parsePortsFlags } from "../src/cli-args.js";
 
 test("parseInstallFlags reads --yes/--defaults, --no-service, and --local-repo", () => {
   const flags = parseInstallFlags(["--yes", "--no-service", "--local-repo", "/x/y"]);
@@ -46,4 +46,21 @@ test("parseLogsFlags reads a target stream, -f, and -n", () => {
   assert.deepEqual(parseLogsFlags(["web"]), { which: "web", follow: false, lines: 100 });
   assert.deepEqual(parseLogsFlags(["vault", "-f"]), { which: "vault", follow: true, lines: 100 });
   assert.deepEqual(parseLogsFlags(["-n", "20"]), { which: "both", follow: false, lines: 20 });
+});
+
+test("parsePortsFlags defaults both ports to null", () => {
+  assert.deepEqual(parsePortsFlags([]), { webPort: null, vaultPort: null });
+});
+
+test("parsePortsFlags reads --web-port and --vault-port", () => {
+  assert.deepEqual(parsePortsFlags(["--web-port", "1400"]), { webPort: 1400, vaultPort: null });
+  assert.deepEqual(parsePortsFlags(["--vault-port", "5300"]), { webPort: null, vaultPort: 5300 });
+  assert.deepEqual(parsePortsFlags(["--web-port", "1400", "--vault-port", "5300"]), {
+    webPort: 1400,
+    vaultPort: 5300,
+  });
+});
+
+test("parsePortsFlags ignores an install name positional alongside flags", () => {
+  assert.deepEqual(parsePortsFlags(["Work Brain", "--web-port", "1400"]), { webPort: 1400, vaultPort: null });
 });
