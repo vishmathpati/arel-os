@@ -25,6 +25,7 @@ import { EveningShutdownPage } from "@/app/rituals/evening/evening-page";
 import { FocusSessionPage } from "@/app/rituals/focus/focus-page";
 import { MorningManifestoPage } from "@/app/rituals/morning/morning-page";
 import { WeeklyReviewPage } from "@/app/rituals/weekly/weekly-page";
+import { SettingsPage } from "@/app/settings/settings-page";
 import { TasksPage } from "@/app/tasks/tasks-page";
 import { WelcomePage } from "@/app/welcome/welcome-page";
 import { Home, TriangleAlert } from "lucide-react";
@@ -69,6 +70,7 @@ export const router = createBrowserRouter([
       { path: "weekly", element: <WeeklyReviewPage /> },
       { path: "ideal-week", element: <IdealWeekPage /> },
       { path: "guide", element: <GuidePage /> },
+      { path: "settings", element: <SettingsPage /> },
       { path: "welcome", element: <WelcomePage /> },
       {
         path: "*",

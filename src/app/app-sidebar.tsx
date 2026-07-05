@@ -25,7 +25,7 @@ import {
   SidebarRail,
 } from "@/shared/components/ui/sidebar";
 import { usePublicConfig } from "@/shared/lib/config/use-config";
-import { RotateCcw, Settings } from "lucide-react";
+import { RotateCcw, Settings, SlidersHorizontal } from "lucide-react";
 import { Fragment } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 
@@ -107,6 +107,10 @@ export function AppSidebar() {
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
               <DropdownMenuContent side="top" align="start" className="w-56">
+                <DropdownMenuItem onSelect={() => navigate("/settings")}>
+                  <SlidersHorizontal />
+                  Settings
+                </DropdownMenuItem>
                 <DropdownMenuItem onSelect={rerunSetup}>
                   <RotateCcw />
                   Re-run setup

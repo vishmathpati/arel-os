@@ -12,6 +12,7 @@
  *   POST /vault/write   { path, frontmatter, body } → { path, frontmatter }
  *   POST /vault/delete  { path }       → { archivedPath, deleted_from }
  *   POST /vault/env     { keys: { KEY: value } } → { ok, keysSet }  (onboarding AI gate, §5)
+ *   GET  /vault/env/status              → { AI_GATEWAY_API_KEY: bool, ... }  (set/not-set, never values)
  *   GET  /vault/env/validate            → { status: ok|invalid-key|model-error|rate-limited|no-credit|unreachable, detail }
  *                                          (real generateText probe — see engine/health.ts)
  *
@@ -39,7 +40,7 @@ import { repoPathForSlug } from "./engine/project-repos.ts";
 import { readRunRecords } from "./engine/runlog.ts";
 import { nextDue, parseTrigger } from "./engine/schedule.ts";
 import { mergeSchedulerState, readSchedulerState } from "./engine/scheduler-state.ts";
-import { DisallowedEnvKeyError, writeEnvKeys } from "./env.ts";
+import { DisallowedEnvKeyError, readEnvKeyStatus, writeEnvKeys } from "./env.ts";
 import {
   FocusBridgeError,
   readFocusResult,
@@ -179,7 +180,14 @@ async function handle(req: Request): Promise<Response> {
       return json({ ok: true, keysSet });
     }
 
-    // A genuinely authenticated probe (minimal real completion, ~8 tokens) to
+    // Set/not-set status for every allowlisted env key — never the value
+    // itself (same no-echo posture as the write path). Backs the Settings →
+    // AI section's key-status indicator.
+    if (req.method === "GET" && pathname === "/vault/env/status") {
+      return json(readEnvKeyStatus());
+    }
+
+    // A genuinely authenticated probe (minimal real completion, ~16 tokens) to
     // confirm the just-written key actually works — see engine/health.ts for
     // why gateway.getAvailableModels() is not sufficient (it succeeds even
     // with a fake key). Returns one of three honest states: ok / invalid-key /

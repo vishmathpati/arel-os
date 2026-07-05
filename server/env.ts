@@ -115,3 +115,22 @@ export async function writeEnvKeys(
 
   return { keysSet: keys };
 }
+
+/**
+ * Status of every allowlisted env key — set/not-set only, never the value
+ * (same no-echo posture as the write path). Backs the Settings → AI section's
+ * "key status" indicator, and any other surface that needs to know whether a
+ * key exists without being able to read it.
+ *
+ * Reads `process.env` (not the file) — Bun auto-loads `.env` into
+ * `process.env` at boot, and `writeEnvKeys` above keeps `process.env` in sync
+ * with every write, so `process.env` is always the live source of truth for
+ * this running process.
+ */
+export function readEnvKeyStatus(): Record<AllowedEnvKey, boolean> {
+  const status = {} as Record<AllowedEnvKey, boolean>;
+  for (const key of ALLOWED_ENV_KEYS) {
+    status[key] = !!process.env[key]?.trim();
+  }
+  return status;
+}

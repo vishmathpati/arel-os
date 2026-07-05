@@ -37,8 +37,16 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
-  // Each test starts from a clean .env (config.json itself is untouched).
+  // Each test starts from a clean .env (config.json itself is untouched) and
+  // clean process.env for every allowlisted key — writeEnvKeys mutates
+  // process.env directly, so leftovers from a prior test would otherwise leak.
   await fs.rm(envMod.envFilePath(), { force: true });
+  // process.env coerces `undefined` to the string "undefined" on assignment
+  // (which would read as "set"), so a real `delete` is required for a clean
+  // not-set state between tests.
+  for (const key of envMod.ALLOWED_ENV_KEYS) {
+    delete process.env[key];
+  }
 });
 
 describe("envFilePath", () => {
@@ -129,5 +137,35 @@ describe("writeEnvKeys — file behavior", () => {
   it("makes the value available on process.env immediately", async () => {
     await envMod.writeEnvKeys({ AI_GATEWAY_API_KEY: "sk-live-now" });
     expect(process.env.AI_GATEWAY_API_KEY).toBe("sk-live-now");
+  });
+});
+
+describe("readEnvKeyStatus", () => {
+  it("reports every allowlisted key as not-set when none are configured", () => {
+    const status = envMod.readEnvKeyStatus();
+    for (const key of envMod.ALLOWED_ENV_KEYS) {
+      expect(status[key]).toBe(false);
+    }
+  });
+
+  it("reports a key as set after writeEnvKeys, without ever exposing the value", async () => {
+    await envMod.writeEnvKeys({ AI_GATEWAY_API_KEY: "sk-abc123" });
+    const status = envMod.readEnvKeyStatus();
+    expect(status.AI_GATEWAY_API_KEY).toBe(true);
+    expect(JSON.stringify(status)).not.toContain("sk-abc123");
+  });
+
+  it("treats a blank/whitespace-only value as not-set", async () => {
+    await envMod.writeEnvKeys({ AI_GATEWAY_API_KEY: "   " });
+    const status = envMod.readEnvKeyStatus();
+    expect(status.AI_GATEWAY_API_KEY).toBe(false);
+  });
+
+  it("reports each allowlisted key independently", async () => {
+    await envMod.writeEnvKeys({ ARELOS_ENGINE_MODEL: "anthropic/claude-haiku-4.5" });
+    const status = envMod.readEnvKeyStatus();
+    expect(status.ARELOS_ENGINE_MODEL).toBe(true);
+    expect(status.AI_GATEWAY_API_KEY).toBe(false);
+    expect(status.ARELOS_ENGINE_FALLBACK).toBe(false);
   });
 });

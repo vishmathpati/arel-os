@@ -85,6 +85,18 @@ export async function writeEnvKeys(keys: Record<string, string>): Promise<{ keys
   );
 }
 
+/** Set/not-set status for every allowlisted env key — never the value itself. */
+export type EnvKeyStatus = Record<string, boolean>;
+
+/**
+ * GET /vault/env/status — whether each allowlisted env key is currently set
+ * (boolean only, same no-echo posture as the write path). Backs the Settings
+ * → AI section's "key status" indicator.
+ */
+export async function readEnvKeyStatus(): Promise<EnvKeyStatus> {
+  return unwrap(await fetch(`${BASE_URL}/vault/env/status`));
+}
+
 /** The honest states a key-validation probe can land in — see server/engine/health.ts. */
 export type GatewayKeyValidation =
   | { status: "ok"; detail: string }
