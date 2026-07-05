@@ -10,6 +10,7 @@ import {
   normalizeDisplayName,
   resolvePort,
   slugifyName,
+  TCC_PROTECTED_PATH_MESSAGE,
   toArelConfig,
 } from "../src/install-plan.js";
 import { deriveServiceLabels } from "../src/paths.js";
@@ -72,6 +73,23 @@ test("checkInstallDir reports empty for a fresh nonexistent path", () => {
   const check = checkInstallDir(join(tmpdir(), "rlo-does-not-exist-xyz"));
   assert.equal(check.exists, false);
   assert.equal(check.nonEmpty, false);
+});
+
+test("checkInstallDir flags isTccProtected for a path inside ~/Desktop", () => {
+  const check = checkInstallDir(join(homedir(), "Desktop", "rlo-tcc-test"));
+  assert.equal(check.isTccProtected, true);
+});
+
+test("checkInstallDir does not flag isTccProtected for a normal home-relative path", () => {
+  const check = checkInstallDir(join(homedir(), "rlo-tcc-test-safe"));
+  assert.equal(check.isTccProtected, false);
+});
+
+test("TCC_PROTECTED_PATH_MESSAGE names the actual restriction in plain English", () => {
+  assert.match(TCC_PROTECTED_PATH_MESSAGE, /Desktop/);
+  assert.match(TCC_PROTECTED_PATH_MESSAGE, /Documents/);
+  assert.match(TCC_PROTECTED_PATH_MESSAGE, /Downloads/);
+  assert.match(TCC_PROTECTED_PATH_MESSAGE, /iCloud Drive/);
 });
 
 test("resolvePort returns the requested port when free", async () => {

@@ -6,7 +6,7 @@
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { accessSync, constants } from "node:fs";
 import { dirname } from "node:path";
-import { deriveServiceLabels, expandHome, type ServiceLabels } from "./paths.js";
+import { deriveServiceLabels, expandHome, isTccProtectedPath, type ServiceLabels } from "./paths.js";
 import { findFreePort, isValidPort } from "./ports.js";
 
 export interface InstallAnswers {
@@ -57,7 +57,18 @@ export interface InstallDirCheck {
   exists: boolean;
   nonEmpty: boolean;
   isPriorArelosInstall: boolean;
+  isTccProtected: boolean;
 }
+
+/**
+ * Plain-English explanation shown (and re-prompted with) when the chosen
+ * install dir or vault path resolves to inside a macOS TCC-protected folder
+ * (field bug: launchd-spawned services get `Operation not permitted`,
+ * exit 126, and crash-loop forever from Desktop/Documents/Downloads/iCloud
+ * Drive — see rlo-cli-spec.md and paths.ts isTccProtectedPath).
+ */
+export const TCC_PROTECTED_PATH_MESSAGE =
+  "macOS blocks background services from running in Desktop, Documents, Downloads, or iCloud Drive. Pick a folder in your home directory instead.";
 
 export function checkInstallDir(rawPath: string): InstallDirCheck {
   const path = expandHome(rawPath);
@@ -76,7 +87,7 @@ export function checkInstallDir(rawPath: string): InstallDirCheck {
     nonEmpty = entries.length > 0;
     isPriorArelosInstall = entries.includes(".git") && entries.includes("package.json");
   }
-  return { path, parentWritable, exists, nonEmpty, isPriorArelosInstall };
+  return { path, parentWritable, exists, nonEmpty, isPriorArelosInstall, isTccProtected: isTccProtectedPath(path) };
 }
 
 export function defaultVaultPath(installDir: string): string {

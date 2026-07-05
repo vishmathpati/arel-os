@@ -4,13 +4,12 @@
  */
 import * as p from "@clack/prompts";
 import pc from "picocolors";
-import { existsSync } from "node:fs";
-import { join } from "node:path";
 import { ensureBun, MANUAL_BUN_INSTALL_HINT } from "./bun-setup.js";
 import type { InstallFlags } from "./cli-args.js";
 import { readConfig, writeConfig } from "./config.js";
 import { runStreaming } from "./exec.js";
-import { waitForHealthy } from "./health.js";
+import { formatHealthTimeoutDiagnostics, waitForHealthy } from "./health.js";
+import { lastLines, logPathFor } from "./logs.js";
 import {
   checkInstallDir,
   defaultInstallDirFor,
@@ -19,6 +18,7 @@ import {
   normalizeDisplayName,
   resolvePort,
   slugifyName,
+  TCC_PROTECTED_PATH_MESSAGE,
   toArelConfig,
   type InstallAnswers,
 } from "./install-plan.js";
@@ -26,7 +26,7 @@ import { bootstrapAndStart, installServiceFiles } from "./services.js";
 import { cloneRepo, isGitCheckout } from "./repo.js";
 import { ensureEnvFile, ensureLogsDir, scaffoldVault, TemplateVaultMissingError } from "./scaffold.js";
 import { runRepairMenu } from "./repair.js";
-import { configPath, deriveServiceLabels } from "./paths.js";
+import { configPath, deriveServiceLabels, isTccProtectedPath } from "./paths.js";
 import { listLoadedArelosLabels } from "./launchd.js";
 
 export async function runInstall(argv: string[], flags: InstallFlags): Promise<number> {
@@ -197,11 +197,8 @@ export async function runInstall(argv: string[], flags: InstallFlags): Promise<n
   const health = await waitForHealthy(config.webPort, config.vaultPort);
   if (!health.healthy) {
     healthSpin.stop("Health check timed out.");
-    console.error(
-      pc.red(
-        `App did not come up in time. Check logs:\n  arelos logs\n  ${join(installDir, "logs/service/web.log")}\n  ${join(installDir, "logs/service/vault.log")}`,
-      ),
-    );
+    console.error(pc.red(formatHealthTimeoutDiagnostics(installDir, (p) => lastLines(p, 10), logPathFor)));
+    console.error(pc.dim("\nFull logs: arelos logs"));
     return 1;
   }
   healthSpin.stop("App is up.");
@@ -239,6 +236,14 @@ async function collectAnswers(flags: InstallFlags): Promise<InstallAnswers | nul
     const displayName = normalizeDisplayName(flags.displayName ?? DEFAULTS.displayName);
     const installDir = flags.installDir ?? defaultInstallDirFor(displayName);
     const vaultPath = flags.vaultPath ?? defaultVaultPath(installDir);
+    if (isTccProtectedPath(installDir)) {
+      console.error(pc.red(`Install dir ${installDir} is not safe to use: ${TCC_PROTECTED_PATH_MESSAGE}`));
+      return null;
+    }
+    if (isTccProtectedPath(vaultPath)) {
+      console.error(pc.red(`Vault path ${vaultPath} is not safe to use: ${TCC_PROTECTED_PATH_MESSAGE}`));
+      return null;
+    }
     const webPortReq = flags.webPort ?? DEFAULTS.webPort;
     const vaultPortReq = flags.vaultPort ?? DEFAULTS.vaultPort;
     const web = await resolvePort(webPortReq);
@@ -272,6 +277,11 @@ async function collectAnswers(flags: InstallFlags): Promise<InstallAnswers | nul
     });
     if (p.isCancel(raw)) return null;
     const check = checkInstallDir(String(raw || installDirDefault));
+    if (check.isTccProtected) {
+      const safeDefault = defaultInstallDirFor(displayName);
+      p.log.error(`${TCC_PROTECTED_PATH_MESSAGE} (suggested: ${safeDefault})`);
+      continue;
+    }
     if (!check.parentWritable) {
       p.log.error(`Cannot write to ${check.path} — choose another location.`);
       continue;
@@ -302,12 +312,23 @@ async function collectAnswers(flags: InstallFlags): Promise<InstallAnswers | nul
   }
 
   // Step 4 — Vault location.
-  const vaultRaw = await p.text({
-    message: "Where's your vault (notes/tasks/quests)?",
-    placeholder: defaultVaultPath(installDir),
-    defaultValue: defaultVaultPath(installDir),
-  });
-  if (p.isCancel(vaultRaw)) return null;
+  let vaultPath = "";
+  for (;;) {
+    const vaultDefault = defaultVaultPath(installDir);
+    const vaultRaw = await p.text({
+      message: "Where's your vault (notes/tasks/quests)?",
+      placeholder: vaultDefault,
+      defaultValue: vaultDefault,
+    });
+    if (p.isCancel(vaultRaw)) return null;
+    const candidate = String(vaultRaw || vaultDefault);
+    if (isTccProtectedPath(candidate)) {
+      p.log.error(`${TCC_PROTECTED_PATH_MESSAGE} (suggested: ${vaultDefault})`);
+      continue;
+    }
+    vaultPath = candidate;
+    break;
+  }
 
   // Step 5 — Ports.
   const webPort = await promptPort("Web port?", DEFAULTS.webPort);
@@ -318,7 +339,7 @@ async function collectAnswers(flags: InstallFlags): Promise<InstallAnswers | nul
   return {
     displayName,
     installDir,
-    vaultPath: String(vaultRaw || defaultVaultPath(installDir)),
+    vaultPath,
     webPort,
     vaultPort,
   };

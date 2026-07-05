@@ -61,3 +61,52 @@ export function expandHome(p: string): string {
   if (p.startsWith("~/")) return join(homedir(), p.slice(2));
   return p;
 }
+
+/**
+ * Folders macOS TCC privacy protection blocks background (launchd-spawned)
+ * processes from accessing without an interactive grant: Desktop, Documents,
+ * Downloads, and iCloud Drive (~/Library/Mobile Documents). A service that
+ * installs into one of these will register fine but crash-loop forever on
+ * start with `Operation not permitted` (field bug: exit 126). Checked against
+ * the *resolved* (home-expanded) path so `~/Desktop/foo` and
+ * `/Users/x/Desktop/foo` are both caught.
+ */
+const TCC_PROTECTED_SUFFIXES = ["Desktop", "Documents", "Downloads", "Library/Mobile Documents"] as const;
+
+/**
+ * True if `rawPath` resolves to inside (or exactly at) one of the TCC-protected
+ * directories under `home`. Pure string/path logic — no filesystem access —
+ * so it can be unit tested without touching disk.
+ *
+ * - Exact home root (`~`) is safe.
+ * - Sibling names that merely start with the same string (e.g. `~/Desktopx`)
+ *   are safe — matched by path segment, not string prefix.
+ * - Nested arbitrarily deep paths inside a protected dir are caught.
+ * - Case-insensitive, matching macOS's default case-insensitive APFS/HFS+.
+ */
+export function isTccProtectedPath(rawPath: string, home: string = homedir()): boolean {
+  const resolved = expandHomeWith(rawPath, home);
+  const normalizedHome = normalizeForCompare(home);
+  const normalizedResolved = normalizeForCompare(resolved);
+
+  for (const suffix of TCC_PROTECTED_SUFFIXES) {
+    const protectedDir = normalizeForCompare(join(normalizedHome, suffix));
+    if (normalizedResolved === protectedDir || normalizedResolved.startsWith(`${protectedDir}/`)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function expandHomeWith(p: string, home: string): string {
+  if (p === "~") return home;
+  if (p.startsWith("~/")) return join(home, p.slice(2));
+  return p;
+}
+
+function normalizeForCompare(p: string): string {
+  // Collapse any trailing slash and lowercase for macOS's default
+  // case-insensitive filesystem semantics.
+  const withoutTrailingSlash = p.length > 1 && p.endsWith("/") ? p.slice(0, -1) : p;
+  return withoutTrailingSlash.toLowerCase();
+}
