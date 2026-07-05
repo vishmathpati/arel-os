@@ -1,9 +1,11 @@
 /**
  * Arel OS vault server — a thin Bun HTTP layer over server/io.ts. The vault
  * folder is the backend; this server is the only thing that touches it. The
- * Vite frontend (port 1347) calls these endpoints; this server runs on 5274.
+ * Vite frontend calls these endpoints; ports come from `~/.arelos/config.json`
+ * (see server/config.ts).
  *
  * Endpoints (Chapter 2 Contract):
+ *   GET  /config                       → { displayName, vaultPort }
  *   GET  /vault/read?path=REL          → { path, frontmatter, body }
  *   GET  /vault/frontmatter?path=REL   → { path, frontmatter }
  *   GET  /vault/list?dir=REL           → { dir, entries }
@@ -24,6 +26,7 @@
 import { basename } from "node:path";
 import { type ClipperPayload, articleCapture, nextInboxId } from "../src/shared/lib/clipper.ts";
 import { inboxPath, mediaPath } from "../src/shared/lib/vault/paths.ts";
+import { loadConfig } from "./config.ts";
 import { type EngineConfig, readEngineConfig, writeEngineConfig } from "./engine/config.ts";
 import { runRecipe } from "./engine/engine.ts";
 import { getRecipeHealth } from "./engine/health.ts";
@@ -51,7 +54,7 @@ import {
   writeVaultFile,
 } from "./io.ts";
 
-const PORT = Number(process.env.ARELOS_VAULT_PORT ?? 5274);
+const PORT = Number(process.env.ARELOS_VAULT_PORT) || loadConfig().vaultPort;
 
 const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
@@ -107,6 +110,11 @@ async function handle(req: Request): Promise<Response> {
   const { pathname } = url;
 
   try {
+    if (req.method === "GET" && pathname === "/config") {
+      const c = loadConfig();
+      return json({ displayName: c.displayName, vaultPort: c.vaultPort });
+    }
+
     if (req.method === "GET" && pathname === "/vault/read") {
       const path = url.searchParams.get("path");
       if (!path) return json({ error: "Missing 'path' query param" }, 400);

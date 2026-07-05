@@ -16,8 +16,12 @@ import {
   serializeDocument,
   wikiTarget,
 } from "../src/shared/lib/vault/frontmatter.ts";
-import { VAULT_DIRS, VAULT_ROOT, archivedPath, mediaPath } from "../src/shared/lib/vault/paths.ts";
+import { VAULT_DIRS, archivedPath, mediaPath } from "../src/shared/lib/vault/paths.ts";
 import type { AnyFrontmatter, VaultDoc, VaultListEntry } from "../src/shared/lib/vault/schemas.ts";
+import { loadConfig } from "./config.ts";
+
+/** The real vault root, resolved from `~/.arelos/config.json` (or dev fallback). */
+const CONFIGURED_ROOT = loadConfig().vaultPath;
 
 /** Thrown when a relative path would escape the vault root. */
 export class VaultPathError extends Error {
@@ -39,7 +43,7 @@ export class VaultNotFoundError extends Error {
  * Resolve a vault-relative path to an absolute path, refusing anything that
  * escapes the root (e.g. "../etc/passwd"). `root` is injectable for tests.
  */
-export function resolveVaultPath(relativePath: string, root: string = VAULT_ROOT): string {
+export function resolveVaultPath(relativePath: string, root: string = CONFIGURED_ROOT): string {
   const rootAbs = resolve(root);
   const abs = resolve(rootAbs, relativePath);
   if (abs !== rootAbs && !abs.startsWith(rootAbs + sep)) {
@@ -74,7 +78,7 @@ async function atomicWrite(absPath: string, contents: string): Promise<void> {
 /** Read and parse a vault file into { path, frontmatter, body }. */
 export async function readVaultFile(
   relativePath: string,
-  root: string = VAULT_ROOT,
+  root: string = CONFIGURED_ROOT,
 ): Promise<VaultDoc> {
   const abs = resolveVaultPath(relativePath, root);
   let raw: string;
@@ -97,7 +101,7 @@ export async function readVaultFile(
 /** Read only the frontmatter of a vault file (body is parsed but discarded). */
 export async function readFrontmatter(
   relativePath: string,
-  root: string = VAULT_ROOT,
+  root: string = CONFIGURED_ROOT,
 ): Promise<{ path: string; frontmatter: AnyFrontmatter }> {
   const doc = await readVaultFile(relativePath, root);
   return { path: doc.path, frontmatter: doc.frontmatter };
@@ -112,7 +116,7 @@ export async function writeVaultFile(
   relativePath: string,
   frontmatter: Record<string, unknown>,
   body: string,
-  root: string = VAULT_ROOT,
+  root: string = CONFIGURED_ROOT,
 ): Promise<{ path: string; frontmatter: AnyFrontmatter }> {
   const abs = resolveVaultPath(relativePath, root);
   const now = new Date().toISOString();
@@ -130,7 +134,7 @@ export async function writeVaultFile(
  */
 export async function softDeleteVaultFile(
   relativePath: string,
-  root: string = VAULT_ROOT,
+  root: string = CONFIGURED_ROOT,
 ): Promise<{ archivedPath: string; deleted_from: string }> {
   const abs = resolveVaultPath(relativePath, root);
   const doc = await readVaultFile(relativePath, root);
@@ -153,7 +157,7 @@ export async function softDeleteVaultFile(
  */
 export async function listVaultDir(
   relativeDir: string,
-  root: string = VAULT_ROOT,
+  root: string = CONFIGURED_ROOT,
 ): Promise<VaultListEntry[]> {
   const abs = resolveVaultPath(relativeDir, root);
   const entries: VaultListEntry[] = [];
@@ -195,7 +199,7 @@ const RESOLVE_DIRS: readonly string[] = [
  */
 export async function resolveWikilink(
   link: string,
-  root: string = VAULT_ROOT,
+  root: string = CONFIGURED_ROOT,
 ): Promise<string | null> {
   const stem = wikiTarget(link);
   if (!stem) return null;
@@ -224,7 +228,7 @@ async function exists(absPath: string): Promise<boolean> {
 }
 
 /** Absolute path on disk for a vault-relative path (handy for tests/tools). */
-export function absVaultPath(relativePath: string, root: string = VAULT_ROOT): string {
+export function absVaultPath(relativePath: string, root: string = CONFIGURED_ROOT): string {
   return join(resolve(root), relativePath);
 }
 
@@ -236,7 +240,7 @@ export function absVaultPath(relativePath: string, root: string = VAULT_ROOT): s
 export async function saveMediaFile(
   originalName: string,
   bytes: Uint8Array,
-  root: string = VAULT_ROOT,
+  root: string = CONFIGURED_ROOT,
 ): Promise<{ relativePath: string; filename: string }> {
   const dot = originalName.lastIndexOf(".");
   const ext =

@@ -11,8 +11,13 @@
  * so rescheduling/re-homing edits one field instead of moving files.
  */
 
-/** Absolute path to the vault DATA folder (markdown only; never committed). */
-export const VAULT_ROOT = "/Users/vishmathpati/Arel Ecosystem/arel-workspace";
+/**
+ * Dev-only default. Production always injects the real root from config
+ * (server/io.ts pulls it from loadConfig().vaultPath). Browser code never
+ * resolves absolute paths, so this value is inert in the bundle.
+ */
+export const VAULT_ROOT: string =
+  (typeof process !== "undefined" && process.env?.ARELOS_VAULT_PATH) || "/tmp/arelos-dev-vault";
 
 /** Top-level vault directories. Containers (area/quest/project/database) use a
  * folder-form leaf so they can hold attachments/subpages; leaves are flat files. */
