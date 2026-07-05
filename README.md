@@ -63,11 +63,11 @@ background, so it's always there at `localhost` — no terminal window to babysi
 
 ## Optional companions
 
-These are separate installs that pair with Arel OS but aren't required by it.
+These are separate installs that pair with Arel OS but aren't required by it. All three are coming soon as separate releases for v1.
 
-- **Arel Clipper** — a browser extension for capturing pages straight to your inbox. [github.com/vishmathpati/arel-clipper](https://github.com/vishmathpati/arel-clipper)
-- **Arel Focus** — coming as a separate repo.
-- **Arel Blocker** — coming as a separate repo.
+- **Arel Clipper** — a browser extension for capturing pages straight to your inbox.
+- **Arel Focus** — a focus-timer that talks to your Focus Sessions.
+- **Arel Blocker** — blocks distracting sites during a Focus Session.
 
 ## License
 

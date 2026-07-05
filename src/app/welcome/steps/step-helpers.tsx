@@ -18,12 +18,10 @@ const HELPERS: Helper[] = [
   {
     name: "Arel Clipper",
     blurb: "Save any web page straight to your Inbox with one click.",
-    href: "https://github.com/vishmathpati/arel-clipper",
   },
   {
     name: "Arel Focus",
     blurb: "A focus-timer that talks to your Focus Sessions.",
-    href: "https://github.com/vishmathpati/arel-focus",
   },
   {
     name: "Arel Blocker",
