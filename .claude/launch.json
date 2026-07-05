@@ -26,6 +26,20 @@
       "runtimeExecutable": "bun",
       "runtimeArgs": ["server/index.ts"],
       "port": 5274
+    },
+    {
+      "name": "arelos-vault-safe",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": ["server/index.ts"],
+      "port": 5390,
+      "env": { "ARELOS_VAULT_PORT": "5390", "ARELOS_WEB_PORT": "1390" }
+    },
+    {
+      "name": "arelos-dev-safe",
+      "runtimeExecutable": "bunx",
+      "runtimeArgs": ["vite", "--port", "1390", "--strictPort"],
+      "port": 1390,
+      "env": { "VITE_VAULT_API": "http://localhost:5390" }
     }
   ]
 }

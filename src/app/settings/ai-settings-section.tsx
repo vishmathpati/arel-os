@@ -93,31 +93,40 @@ export function AiSettingsSection() {
           </div>
 
           {!reentering ? (
-            <div className="flex items-center gap-3">
-              <Button variant="outline" size="sm" onClick={() => setReentering(true)}>
-                {keySet ? "Re-enter key" : "Add key"}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={runValidate}
-                disabled={validating || !keySet}
-              >
-                {validating ? "Validating…" : "Validate"}
+            <>
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setValidation(null);
+                    setReentering(true);
+                  }}
+                >
+                  {keySet ? "Re-enter key" : "Add key"}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={runValidate}
+                  disabled={validating || !keySet}
+                >
+                  {validating ? "Validating…" : "Validate"}
+                </Button>
+              </div>
+              <ValidationBanner validation={validation} />
+            </>
+          ) : (
+            <div className="space-y-3">
+              {/* GatewayKeyForm renders its own validation banner internally
+                  and stays open after submit so that result stays visible —
+                  "Done" is a separate, explicit action to collapse it. */}
+              <GatewayKeyForm submitLabel="Save & test" onResult={loadStatus} />
+              <Button variant="ghost" size="sm" onClick={() => setReentering(false)}>
+                Done
               </Button>
             </div>
-          ) : (
-            <GatewayKeyForm
-              submitLabel="Save & test"
-              onResult={({ validation: result }) => {
-                setValidation(result);
-                setReentering(false);
-                loadStatus();
-              }}
-            />
           )}
-
-          <ValidationBanner validation={validation} />
         </CardContent>
       </Card>
     </section>
