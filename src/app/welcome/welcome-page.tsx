@@ -6,26 +6,22 @@
  * complete with no data created and advances), and exitable at any time
  * ("Exit setup" sets status: skipped and returns to the app).
  *
- * PHASE 1 (this build): welcome, areas, quest, project, tasks, habit, inbox,
- * manifesto, done are real. gate-finance / gate-recipes / gate-ai / helpers
- * render `StepPlaceholder` and auto-advance — see PLACEHOLDER_STEPS in
- * onboarding/client.ts.
- *
- * PHASE 2 insertion points (exact, for the next agent):
- *   - Replace the `isPlaceholderStep(step)` branch below with real step
- *     components for "gate-finance", "gate-recipes", "gate-ai", "helpers".
- *     Each gate step should call `setGate(name, "yes" | "no")` before
- *     `advance(step, { artifacts })`, mirroring how StepAreas/StepQuest call
- *     `advance` today. No change to STEP_ORDER, the persistence shape, or the
- *     shell is required — only new files under `src/app/welcome/steps/` and
- *     new cases in the switch below.
- *   - `VISIBLE_STEPS` (the dot count) should grow from 8 to include the real
- *     gate/helpers screens once they're not pure pass-throughs.
+ * PHASE 2 (this build): every step is real, including the three opt-in gates
+ * (finance / recipes / ai) and the helpers step. Each gate calls
+ * `setGate(name, "yes" | "no")` before `advance(step, { artifacts })`,
+ * mirroring how StepAreas/StepQuest call `advance`. `isPlaceholderStep` /
+ * `PLACEHOLDER_STEPS` in onboarding/client.ts are now vestigial (kept as
+ * always-false/empty so a stale persisted `current_step` never 404s into a
+ * blank screen) — see that module's docstring.
  */
 
 import { StepAreas } from "@/app/welcome/steps/step-areas";
 import { StepDone } from "@/app/welcome/steps/step-done";
+import { StepGateAi } from "@/app/welcome/steps/step-gate-ai";
+import { StepGateFinance } from "@/app/welcome/steps/step-gate-finance";
+import { StepGateRecipes } from "@/app/welcome/steps/step-gate-recipes";
 import { StepHabit } from "@/app/welcome/steps/step-habit";
+import { StepHelpers } from "@/app/welcome/steps/step-helpers";
 import { StepInbox } from "@/app/welcome/steps/step-inbox";
 import { StepManifesto } from "@/app/welcome/steps/step-manifesto";
 import { StepPlaceholder } from "@/app/welcome/steps/step-placeholder";
@@ -43,8 +39,7 @@ import type { Quest } from "@/shared/lib/quest-data";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-/** Steps shown as progress dots this phase (gates/helpers excluded — they're
- * pure pass-throughs until Phase 2 lands real screens). */
+/** Steps shown as progress dots — every real teaching/gate/helpers screen. */
 const VISIBLE_STEPS: StepId[] = [
   "welcome",
   "areas",
@@ -54,11 +49,15 @@ const VISIBLE_STEPS: StepId[] = [
   "habit",
   "inbox",
   "manifesto",
+  "gate-finance",
+  "gate-recipes",
+  "gate-ai",
+  "helpers",
 ];
 
 export function WelcomePage() {
   const { displayName } = usePublicConfig();
-  const { state, loading, advance, skipAll, finish } = useOnboarding();
+  const { state, loading, advance, setGate, skipAll, finish } = useOnboarding();
   const navigate = useNavigate();
 
   // In-flight artifacts carried between steps within this session (also
@@ -83,11 +82,22 @@ export function WelcomePage() {
     navigate("/");
   };
 
+  /** Steps whose "Skip this" is really a gate decline — recorded before advancing
+   * so a shell-level skip never leaves `gates.<name>: pending`. */
+  const GATE_STEP_NAME: Partial<Record<StepId, "finance" | "recipes" | "ai" | "helpers">> = {
+    "gate-finance": "finance",
+    "gate-recipes": "recipes",
+    "gate-ai": "ai",
+  };
+
   const skipCurrent = async () => {
+    const gateName = GATE_STEP_NAME[step];
+    if (gateName) await setGate(gateName, "no");
     await advance(step, { skipped: true });
   };
 
-  const canSkip = step !== "welcome" && step !== "done" && !isPlaceholderStep(step);
+  const canSkip =
+    step !== "welcome" && step !== "done" && step !== "helpers" && !isPlaceholderStep(step);
 
   const renderStep = () => {
     if (isPlaceholderStep(step)) {
@@ -166,6 +176,54 @@ export function WelcomePage() {
         return (
           <StepManifesto
             onNext={(started) => advance("manifesto", { artifacts: { manifestoStarted: started } })}
+          />
+        );
+
+      case "gate-finance":
+        return (
+          <StepGateFinance
+            onNext={async ({ accepted, accountCount, subCount }) => {
+              await setGate("finance", accepted ? "yes" : "no");
+              await advance("gate-finance", {
+                artifacts: accepted
+                  ? { financeAccountCount: accountCount, financeSubCount: subCount }
+                  : undefined,
+              });
+            }}
+          />
+        );
+
+      case "gate-recipes":
+        return (
+          <StepGateRecipes
+            onNext={async ({ accepted, enabledCount }) => {
+              await setGate("recipes", accepted ? "yes" : "no");
+              await advance("gate-recipes", {
+                artifacts: accepted ? { recipesEnabledCount: enabledCount } : undefined,
+              });
+            }}
+          />
+        );
+
+      case "gate-ai":
+        return (
+          <StepGateAi
+            onNext={async ({ accepted, validated }) => {
+              await setGate("ai", accepted ? "yes" : "no");
+              await advance("gate-ai", {
+                artifacts: accepted ? { aiKeyValidated: validated } : undefined,
+              });
+            }}
+          />
+        );
+
+      case "helpers":
+        return (
+          <StepHelpers
+            onNext={async () => {
+              await setGate("helpers", "yes");
+              await advance("helpers");
+            }}
           />
         );
 

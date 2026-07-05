@@ -1,9 +1,9 @@
 /**
  * Step 10 — Done (spec §3 Step 10). Dynamic summary built from the artifacts
- * recorded on each step (never hard-coded) plus the gate answers. Declined /
- * not-yet-built gates show as "Not set up yet" with a deep link — this phase
- * that's every gate + helpers, always, since Phase 2 hasn't landed. Primary
- * sets `status: done` and returns to the app.
+ * recorded on each step (never hard-coded) plus the gate answers. Accepted
+ * gates (Phase 2: finance / recipes / ai) render their real outcome counts;
+ * declined gates show as "Not set up yet" with a deep link. Primary sets
+ * `status: done` and returns to the app.
  */
 
 import { Button } from "@/shared/components/ui/button";
@@ -43,6 +43,20 @@ export function StepDone({
   if (artifacts.habitTitle) checklist.push(`A habit: ${artifacts.habitTitle}`);
   if (artifacts.capturedInbox) checklist.push("Something waiting in your Inbox");
   if (artifacts.manifestoStarted) checklist.push("Today's Morning Manifesto started");
+  if (gates.finance === "yes") {
+    const accounts = artifacts.financeAccountCount ?? 0;
+    const subs = artifacts.financeSubCount ?? 0;
+    checklist.push(
+      `Finance: ${accounts} account${accounts === 1 ? "" : "s"}, ${subs} subscription${subs === 1 ? "" : "s"}`,
+    );
+  }
+  if (gates.recipes === "yes") {
+    const n = artifacts.recipesEnabledCount ?? 0;
+    checklist.push(`${n} recipe${n === 1 ? "" : "s"} enabled`);
+  }
+  if (gates.ai === "yes") {
+    checklist.push(artifacts.aiKeyValidated ? "AI key connected and verified" : "AI key saved");
+  }
 
   const declined: { label: string; to: string; cta: string }[] = [];
   if (gates.finance !== "yes")
