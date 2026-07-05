@@ -5,7 +5,7 @@
  */
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
-import { configPath } from "./paths.js";
+import { configPath, LEGACY_VAULT_LABEL, LEGACY_WEB_LABEL, type ServiceLabels } from "./paths.js";
 
 export interface ArelConfig {
   version: 1;
@@ -14,6 +14,15 @@ export interface ArelConfig {
   vaultPath: string;
   webPort: number;
   vaultPort: number;
+  /**
+   * Per-install launchd labels (see paths.ts deriveServiceLabels). Optional
+   * so configs written before this field existed still parse; callers fall
+   * back to the legacy fixed labels (com.arelos.web/.vault) when absent.
+   */
+  serviceLabels?: {
+    web: string;
+    vault: string;
+  };
 }
 
 export function readConfig(): ArelConfig | null {
@@ -37,4 +46,13 @@ export function writeConfig(config: ArelConfig): void {
   const tmp = `${p}.tmp`;
   writeFileSync(tmp, `${JSON.stringify(config, null, 2)}\n`, { mode: 0o600 });
   renameSync(tmp, p);
+}
+
+/**
+ * The labels to actually operate on for an existing install: config.serviceLabels
+ * when present (installs made after this fix), else the legacy fixed labels
+ * (installs made before it — backward compat per spec).
+ */
+export function resolveServiceLabels(config: ArelConfig): ServiceLabels {
+  return config.serviceLabels ?? { web: LEGACY_WEB_LABEL, vault: LEGACY_VAULT_LABEL };
 }

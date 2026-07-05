@@ -3,6 +3,7 @@
  * Everything here honors ARELOS_CONFIG_PATH so tests/dry-runs never touch
  * the real ~/.arelos.
  */
+import { createHash } from "node:crypto";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
@@ -18,10 +19,39 @@ export function launchAgentsDir(): string {
   return join(homedir(), "Library", "LaunchAgents");
 }
 
-export const WEB_LABEL = "com.arelos.web";
-export const VAULT_LABEL = "com.arelos.vault";
+/**
+ * Pre-per-install-label launchd labels. A second install on the same Mac used
+ * to collide on these fixed labels — see serviceLabels below for the fix.
+ * Kept as the fallback for configs written before this fix (spec: legacy
+ * compat) and as the thing preflight checks for "another install exists".
+ */
+export const LEGACY_WEB_LABEL = "com.arelos.web";
+export const LEGACY_VAULT_LABEL = "com.arelos.vault";
 
-export function plistPath(label: typeof WEB_LABEL | typeof VAULT_LABEL): string {
+export interface ServiceLabels {
+  web: string;
+  vault: string;
+}
+
+/**
+ * Short stable hash of the resolved installDir: same dir -> same slug across
+ * reinstalls/repairs, different dirs -> different slugs, so two installs on
+ * one Mac never fight over the same launchd label.
+ */
+export function installSlug(installDir: string): string {
+  return createHash("sha256").update(installDir).digest("hex").slice(0, 8);
+}
+
+/** Derive the unique per-install label pair from the resolved installDir. */
+export function deriveServiceLabels(installDir: string): ServiceLabels {
+  const slug = installSlug(installDir);
+  return {
+    web: `com.arelos.${slug}.web`,
+    vault: `com.arelos.${slug}.vault`,
+  };
+}
+
+export function plistPath(label: string): string {
   return join(launchAgentsDir(), `${label}.plist`);
 }
 

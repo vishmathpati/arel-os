@@ -20,6 +20,15 @@ export interface ArelConfig {
   vaultPath: string;
   webPort: number;
   vaultPort: number;
+  /**
+   * Per-install launchd labels (rlo's paths.ts deriveServiceLabels). Type-only
+   * here — server code doesn't read this field, but the shape must stay
+   * honest with what rlo writes. Optional so pre-fix config files still parse.
+   */
+  serviceLabels?: {
+    web: string;
+    vault: string;
+  };
 }
 
 const CONFIG_PATH = process.env.ARELOS_CONFIG_PATH ?? join(homedir(), ".arelos", "config.json");

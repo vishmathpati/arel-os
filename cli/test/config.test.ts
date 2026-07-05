@@ -60,3 +60,58 @@ test("readConfig throws on an unsupported version", async () => {
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("writeConfig/readConfig round-trips the optional serviceLabels field", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "rlo-config-test-"));
+  const configFile = join(dir, "config.json");
+  process.env.ARELOS_CONFIG_PATH = configFile;
+  try {
+    const { writeConfig, readConfig } = await import("../src/config.js");
+
+    writeConfig({
+      version: 1,
+      displayName: "Test Brain",
+      installDir: join(dir, "install"),
+      vaultPath: join(dir, "vault"),
+      webPort: 1400,
+      vaultPort: 5300,
+      serviceLabels: { web: "com.arelos.abc12345.web", vault: "com.arelos.abc12345.vault" },
+    });
+
+    const loaded = readConfig();
+    assert.deepEqual(loaded?.serviceLabels, {
+      web: "com.arelos.abc12345.web",
+      vault: "com.arelos.abc12345.vault",
+    });
+  } finally {
+    delete process.env.ARELOS_CONFIG_PATH;
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("resolveServiceLabels uses config.serviceLabels when present", async () => {
+  const { resolveServiceLabels } = await import("../src/config.js");
+  const labels = resolveServiceLabels({
+    version: 1,
+    displayName: "Test Brain",
+    installDir: "/tmp/install",
+    vaultPath: "/tmp/vault",
+    webPort: 1400,
+    vaultPort: 5300,
+    serviceLabels: { web: "com.arelos.abc12345.web", vault: "com.arelos.abc12345.vault" },
+  });
+  assert.deepEqual(labels, { web: "com.arelos.abc12345.web", vault: "com.arelos.abc12345.vault" });
+});
+
+test("resolveServiceLabels falls back to legacy fixed labels when serviceLabels is absent (pre-fix configs)", async () => {
+  const { resolveServiceLabels } = await import("../src/config.js");
+  const labels = resolveServiceLabels({
+    version: 1,
+    displayName: "Test Brain",
+    installDir: "/tmp/install",
+    vaultPath: "/tmp/vault",
+    webPort: 1400,
+    vaultPort: 5300,
+  });
+  assert.deepEqual(labels, { web: "com.arelos.web", vault: "com.arelos.vault" });
+});
