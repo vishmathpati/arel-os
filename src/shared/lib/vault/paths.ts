@@ -42,6 +42,7 @@ export const VAULT_DIRS = {
 /** Single-file vault documents (not under a per-item folder). */
 export const VAULT_FILES = {
   idealWeek: "system/ideal-week.md",
+  onboarding: "system/onboarding.md",
 } as const;
 
 /**
@@ -88,6 +89,9 @@ export const weeklyPath = (week: string): string => `${VAULT_DIRS.weekly}/${week
 
 /** system/ideal-week.md */
 export const idealWeekPath = (): string => VAULT_FILES.idealWeek;
+
+/** system/onboarding.md — first-run wizard progress (frontmatter state machine). */
+export const onboardingPath = (): string => VAULT_FILES.onboarding;
 
 /** archive/deleted/<original-relative-path> — soft-delete target (D12). */
 export const archivedPath = (originalRelativePath: string): string =>

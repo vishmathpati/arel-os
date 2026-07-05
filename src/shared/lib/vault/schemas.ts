@@ -27,7 +27,8 @@ export type PrimitiveType =
   | "inbox"
   | "daily"
   | "weekly"
-  | "ideal-week";
+  | "ideal-week"
+  | "system";
 
 /**
  * An area's slug. Top-level Areas are user-defined (read from the vault —
@@ -564,6 +565,19 @@ export interface IdealWeekFrontmatter extends BaseFrontmatter {
   blocks: IdealWeekBlock[];
 }
 
+// ── Onboarding (first-run wizard progress, system/onboarding.md) ────────────
+
+export interface OnboardingFrontmatter extends BaseFrontmatter {
+  type: "system";
+  status: "not-started" | "in-progress" | "done" | "skipped";
+  current_step: string;
+  completed_steps: string[];
+  skipped_steps: string[];
+  gates: Record<string, "pending" | "yes" | "no">;
+  artifacts: Record<string, unknown>;
+  started?: ISODateTime;
+}
+
 // ── Unions + parsed-document shape ───────────────────────────────────────────
 
 export type AnyFrontmatter =
@@ -577,7 +591,8 @@ export type AnyFrontmatter =
   | InboxFrontmatter
   | DailyFrontmatter
   | WeeklyFrontmatter
-  | IdealWeekFrontmatter;
+  | IdealWeekFrontmatter
+  | OnboardingFrontmatter;
 
 /** A parsed vault document: its relative path, frontmatter, and markdown body. */
 export interface VaultDoc<F extends BaseFrontmatter = AnyFrontmatter> {

@@ -5,6 +5,7 @@ import {
   dailyPath,
   databaseIndexPath,
   inboxPath,
+  onboardingPath,
   pagePath,
   projectPath,
   questPath,
@@ -44,5 +45,9 @@ describe("path builders", () => {
 
   it("prefixes the soft-delete archive path", () => {
     expect(archivedPath("tasks/buy-milk.md")).toBe("archive/deleted/tasks/buy-milk.md");
+  });
+
+  it("builds the onboarding progress path", () => {
+    expect(onboardingPath()).toBe("system/onboarding.md");
   });
 });
