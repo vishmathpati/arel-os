@@ -29,8 +29,12 @@ export type PrimitiveType =
   | "weekly"
   | "ideal-week";
 
-/** The 6 locked top-level Areas (D1). No "relationship". */
-export type AreaSlug = "health" | "finance" | "learning" | "spirituality" | "youtube" | "business";
+/**
+ * An area's slug. Top-level Areas are user-defined (read from the vault —
+ * see area-data.ts), not a fixed literal union; kept as a named alias so call
+ * sites document intent even though the underlying type is a plain string.
+ */
+export type AreaSlug = string;
 
 /**
  * Fields shared by every document. `created`/`updated` are stamped by the
@@ -55,9 +59,11 @@ export interface AreaFrontmatter extends BaseFrontmatter {
   area: AreaSlug | Wikilink;
   name: string;
   description?: string;
-  /** DESIGN.md color token name (e.g. "purple-500"). */
+  /** Identity color, a `var(--color-area-N)` token ref into the fixed
+   * 6-hue palette (areas.ts::PALETTE), assigned by `order` at creation. */
   color?: string;
-  /** Lucide icon name. */
+  /** Identity icon — a Lucide icon name from areas.ts::PALETTE, assigned
+   * alongside `color`. Falls back to a generic icon if unset/unknown. */
   icon?: string;
   /** Parent area for sub-areas (nests 2 levels max). */
   parent?: Wikilink;

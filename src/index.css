@@ -155,12 +155,16 @@
   --color-cat-recharge: var(--cat-recharge);
   --color-cat-recharge-border: var(--cat-recharge-border);
 
-  --color-area-health: var(--area-health);
-  --color-area-finance: var(--area-finance);
-  --color-area-learning: var(--area-learning);
-  --color-area-spirituality: var(--area-spirituality);
-  --color-area-youtube: var(--area-youtube);
-  --color-area-business: var(--area-business);
+  /* Area identity palette (D25/D26, generalized) — 6 quiet, mode-independent
+     hues cycled by an area's `order` so user-created areas (not just the
+     original 6) get a stable identity color. Kept as separate named vars
+     (not an array) so Tailwind's static scan can still see each one. */
+  --color-area-1: var(--area-1);
+  --color-area-2: var(--area-2);
+  --color-area-3: var(--area-3);
+  --color-area-4: var(--area-4);
+  --color-area-5: var(--area-5);
+  --color-area-6: var(--area-6);
 
   /* Primitive type colors (D41) — a fixed muted tint per primitive type, used
      on the type icon for at-a-glance scannability in mixed lists/pickers.
@@ -261,15 +265,16 @@
   --cat-recharge: oklch(0.955 0.02 294);
   --cat-recharge-border: oklch(0.56 0.17 294);
 
-  /* Area identity colors (D25 / D26). Mode-independent like status hues —
-     a quiet dot/accent per Area. Converted from the original hex via the
-     precise sRGB→OKLab transform. */
-  --area-health: oklch(0.6867 0.1277 158.95);
-  --area-finance: oklch(0.7466 0.1223 77.04);
-  --area-learning: oklch(0.6815 0.088 207.9);
-  --area-spirituality: oklch(0.6863 0.1334 290.94);
-  --area-youtube: oklch(0.6522 0.1585 23.84);
-  --area-business: oklch(0.6253 0.1304 261.91);
+  /* Area identity palette (D25/D26, generalized) — mode-independent like
+     status hues, a quiet dot/accent cycled across user-created areas by
+     `order`. Values unchanged from the original 6 fixed areas (health,
+     business, learning, spirituality, youtube, finance in palette order). */
+  --area-1: oklch(0.6867 0.1277 158.95);
+  --area-2: oklch(0.6253 0.1304 261.91);
+  --area-3: oklch(0.6815 0.088 207.9);
+  --area-4: oklch(0.6863 0.1334 290.94);
+  --area-5: oklch(0.6522 0.1585 23.84);
+  --area-6: oklch(0.7466 0.1223 77.04);
 
   /* Primitive type colors (D41) — muted, mode-independent icon tints. */
   --type-task: oklch(0.66 0.1 250);
@@ -361,13 +366,14 @@
   --cat-recharge: oklch(0.2502 0.0189 294.16);
   --cat-recharge-border: oklch(0.3796 0.1783 293.74);
 
-  /* Area identity colors (D25 / D26) — same values in both modes. */
-  --area-health: oklch(0.6867 0.1277 158.95);
-  --area-finance: oklch(0.7466 0.1223 77.04);
-  --area-learning: oklch(0.6815 0.088 207.9);
-  --area-spirituality: oklch(0.6863 0.1334 290.94);
-  --area-youtube: oklch(0.6522 0.1585 23.84);
-  --area-business: oklch(0.6253 0.1304 261.91);
+  /* Area identity palette (D25/D26, generalized) — same values as :root
+     (mode-independent). */
+  --area-1: oklch(0.6867 0.1277 158.95);
+  --area-2: oklch(0.6253 0.1304 261.91);
+  --area-3: oklch(0.6815 0.088 207.9);
+  --area-4: oklch(0.6863 0.1334 290.94);
+  --area-5: oklch(0.6522 0.1585 23.84);
+  --area-6: oklch(0.7466 0.1223 77.04);
 
   /* Primitive type colors (D41) — same values as :root (mode-independent). */
   --type-task: oklch(0.66 0.1 250);

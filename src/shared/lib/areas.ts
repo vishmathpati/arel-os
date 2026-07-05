@@ -1,79 +1,65 @@
 /**
- * The 6 locked top-level Areas (BRIEF D1). Single shared source for slug↔label
- * so the sidebar, router, and pickers agree. Area is stored on items as a
- * `[[slug]]` wikilink.
+ * Area identity palette — top-level Areas are user-defined (read from the
+ * vault, see area-data.ts), so identity (color/icon) can no longer be a fixed
+ * per-slug table. Instead this module owns a small fixed PALETTE, cycled by
+ * an area's `order` (1-indexed) so each area gets a stable, distinct look.
+ * The resolved color/icon are persisted into the area's `_index.md`
+ * frontmatter on creation (AreaFrontmatter.color / .icon) so they survive
+ * reordering — this module is only consulted to resolve a fresh assignment
+ * or to fall back for areas written before this existed.
  */
 
 import { toWikilink, wikiTarget } from "@/shared/lib/vault/frontmatter";
-import type { AreaSlug } from "@/shared/lib/vault/schemas";
 import {
   Briefcase,
+  Compass,
   GraduationCap,
   HeartPulse,
+  Layers,
   type LucideIcon,
   Sparkles,
-  Video,
   Wallet,
 } from "lucide-react";
 
-export interface AreaOption {
-  slug: AreaSlug;
-  label: string;
-  /** Identity color as a DESIGN.md token reference (D26). Used in inline
-   * `style={{ backgroundColor }}` for the quiet area dot — slugs are dynamic,
-   * so a CSS var beats a Tailwind class that the static scan can't see. */
+export interface PaletteEntry {
+  /** DESIGN.md color token reference (`var(--color-area-N)`). */
   color: string;
-  /** Identity icon (single source — sidebar, router, area page all read this). */
+  /** Lucide icon name, as stored in AreaFrontmatter.icon. */
+  iconName: string;
   icon: LucideIcon;
 }
 
-export const AREA_OPTIONS: readonly AreaOption[] = [
-  { slug: "health", label: "Health", color: "var(--color-area-health)", icon: HeartPulse },
-  { slug: "finance", label: "Finance", color: "var(--color-area-finance)", icon: Wallet },
-  { slug: "learning", label: "Learning", color: "var(--color-area-learning)", icon: GraduationCap },
-  {
-    slug: "spirituality",
-    label: "Spirituality",
-    color: "var(--color-area-spirituality)",
-    icon: Sparkles,
-  },
-  { slug: "youtube", label: "YouTube", color: "var(--color-area-youtube)", icon: Video },
-  { slug: "business", label: "Business", color: "var(--color-area-business)", icon: Briefcase },
+/** 6 quiet, mode-independent hues + a generic icon per slot. Cycles for the
+ * 7th+ area (color repeats; icon repeats too — good enough at small N). */
+export const PALETTE: readonly PaletteEntry[] = [
+  { color: "var(--color-area-1)", iconName: "HeartPulse", icon: HeartPulse },
+  { color: "var(--color-area-2)", iconName: "Briefcase", icon: Briefcase },
+  { color: "var(--color-area-3)", iconName: "GraduationCap", icon: GraduationCap },
+  { color: "var(--color-area-4)", iconName: "Sparkles", icon: Sparkles },
+  { color: "var(--color-area-5)", iconName: "Compass", icon: Compass },
+  { color: "var(--color-area-6)", iconName: "Wallet", icon: Wallet },
 ];
 
-const LABEL_BY_SLUG = new Map(AREA_OPTIONS.map((a) => [a.slug, a.label]));
-const COLOR_BY_SLUG = new Map(AREA_OPTIONS.map((a) => [a.slug, a.color]));
-const ICON_BY_SLUG = new Map(AREA_OPTIONS.map((a) => [a.slug, a.icon]));
-const OPTION_BY_SLUG = new Map(AREA_OPTIONS.map((a) => [a.slug, a]));
+const ICON_BY_NAME = new Map<string, LucideIcon>(PALETTE.map((p) => [p.iconName, p.icon]));
 
-/** Identity icon for a slug or stored wikilink, or null if unknown. */
-export function areaIcon(area: string | undefined): LucideIcon | null {
-  if (!area) return null;
-  return ICON_BY_SLUG.get(wikiTarget(area) as AreaSlug) ?? null;
+/** Fallback icon for areas with no resolvable icon (missing/unknown name). */
+export const FALLBACK_AREA_ICON: LucideIcon = Layers;
+
+/** Resolve the palette slot for a 1-indexed `order` (cycles past 6). */
+export function paletteForOrder(order: number): PaletteEntry {
+  const i = (((Math.max(1, order) - 1) % PALETTE.length) + PALETTE.length) % PALETTE.length;
+  return PALETTE[i] ?? PALETTE[0];
 }
 
-/** The full identity option for a slug or stored wikilink, or null. */
-export function areaOption(area: string | undefined): AreaOption | null {
-  if (!area) return null;
-  return OPTION_BY_SLUG.get(wikiTarget(area) as AreaSlug) ?? null;
-}
-
-/** Human label for a stored area wikilink ("[[health]]" → "Health"). */
-export function areaLabel(area: string | undefined): string | null {
-  if (!area) return null;
-  const slug = wikiTarget(area);
-  return LABEL_BY_SLUG.get(slug as AreaSlug) ?? slug;
+/** Resolve a stored icon name to its component, or the fallback. */
+export function iconByName(name: string | undefined): LucideIcon {
+  if (!name) return FALLBACK_AREA_ICON;
+  return ICON_BY_NAME.get(name) ?? FALLBACK_AREA_ICON;
 }
 
 /** The bare slug from a stored area wikilink ("[[health]]" → "health"). */
 export function areaSlug(area: string | undefined): string | null {
   return area ? wikiTarget(area) : null;
-}
-
-/** Identity color for a stored area wikilink, or null if unknown/unhomed. */
-export function areaColor(area: string | undefined): string | null {
-  if (!area) return null;
-  return COLOR_BY_SLUG.get(wikiTarget(area) as AreaSlug) ?? null;
 }
 
 /** Wrap a slug into the stored wikilink form ("health" → "[[health]]"). */

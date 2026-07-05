@@ -10,7 +10,7 @@
  *   any other slug  → rows of that database
  */
 
-import { AREA_OPTIONS } from "@/shared/lib/areas";
+import { listAreas } from "@/shared/lib/area-data";
 import { listRows } from "@/shared/lib/database-data";
 import { listPages } from "@/shared/lib/page-data";
 import { wikiTarget } from "@/shared/lib/vault/frontmatter";
@@ -24,7 +24,10 @@ export interface RelationOption {
 /** Enumerate the choosable options for a relation column target. */
 export async function relationOptions(target: string | undefined): Promise<RelationOption[]> {
   if (target === "areas") {
-    return AREA_OPTIONS.map((a) => ({ slug: a.slug, label: a.label, color: a.color }));
+    const areas = await listAreas();
+    return areas
+      .filter((a) => !a.parent)
+      .map((a) => ({ slug: a.slug, label: a.name, color: a.color }));
   }
   if (target === "pages") {
     const pages = await listPages();
@@ -32,7 +35,10 @@ export async function relationOptions(target: string | undefined): Promise<Relat
   }
   if (!target) {
     // Legacy: combined areas + pages
-    const areaOpts = AREA_OPTIONS.map((a) => ({ slug: a.slug, label: a.label, color: a.color }));
+    const areas = await listAreas();
+    const areaOpts = areas
+      .filter((a) => !a.parent)
+      .map((a) => ({ slug: a.slug, label: a.name, color: a.color }));
     const pages = await listPages();
     const pageOpts = pages.map((p) => ({ slug: p.slug, label: p.title || p.slug }));
     return [...areaOpts, ...pageOpts];
@@ -59,14 +65,16 @@ export async function relationLabel(
   if (!slug) return { label: wikilink };
 
   if (target === "areas") {
-    const area = AREA_OPTIONS.find((a) => a.slug === slug);
-    return area ? { label: area.label, color: area.color } : { label: slug };
+    const areas = await listAreas();
+    const area = areas.find((a) => a.slug === slug);
+    return area ? { label: area.name, color: area.color } : { label: slug };
   }
 
   if (!target) {
     // Legacy: try areas first, then pages
-    const area = AREA_OPTIONS.find((a) => a.slug === slug);
-    if (area) return { label: area.label, color: area.color };
+    const areas = await listAreas();
+    const area = areas.find((a) => a.slug === slug);
+    if (area) return { label: area.name, color: area.color };
     try {
       const pages = await listPages();
       const page = pages.find((p) => p.slug === slug);

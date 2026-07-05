@@ -3,92 +3,58 @@
  * Browser-only (uses the fetch-based vault client). No indexing/caching: every
  * read hits the files fresh.
  *
- * Identity for the 6 locked top-level areas (label / color / icon) lives in
- * `areas.ts` — the single source. The vault `_index.md` carries only the
- * MUTABLE state (description, archived, order) plus any user-created sub-areas
- * (which have no `areas.ts` entry and inherit their parent's color). The 6
- * top-level areas are seeded lazily on first load (D26) and are NOT archivable
- * (permanent anchors of the one-home rule).
+ * Top-level Areas are fully user-defined (no more fixed 6 — see areas.ts for
+ * the color/icon palette this module assigns on creation). A vault with zero
+ * areas is valid; the UI shows an empty state inviting creation (onboarding
+ * wizard territory, out of scope here). Sub-areas (2-level max) already
+ * worked this way — this just extends the same mechanism up to top-level.
  */
 
-import { AREA_OPTIONS, areaOption } from "@/shared/lib/areas";
-import { listDir, readDoc, writeDoc } from "@/shared/lib/vault/client";
+import { iconByName, paletteForOrder } from "@/shared/lib/areas";
+import { listDir, readDoc, writeDoc as vaultWriteDoc } from "@/shared/lib/vault/client";
 import { toWikilink, wikiTarget } from "@/shared/lib/vault/frontmatter";
 import { areaIndexPath, slugify } from "@/shared/lib/vault/paths";
 import type { AreaFrontmatter, VaultDoc } from "@/shared/lib/vault/schemas";
+import type { LucideIcon } from "lucide-react";
 
-/** A resolved area: vault state merged with identity (for the fixed 6). */
+/** A resolved area: vault frontmatter merged with its resolved identity. */
 export interface Area {
   slug: string;
   name: string;
   description: string;
-  /** Identity color token ref (`var(--color-area-…)`), or null for unknown. */
-  color: string | null;
+  /** Identity color token ref (`var(--color-area-N)`), resolved from
+   * frontmatter.color or (for areas written before this field existed)
+   * derived from `order` via the palette. */
+  color: string;
+  icon: LucideIcon;
   archived: boolean;
   /** Parent slug if this is a sub-area; undefined for top-level. */
   parent?: string;
   order: number;
   /** Vault path of the `_index.md`. */
   path: string;
-  /** True for the 6 locked top-level areas — permanent, not archivable. */
-  fixed: boolean;
   /** Markdown body = the Plate editor content (separate from the tagline, D29). */
   body: string;
 }
 
-/** One-line descriptions for the seeded top-level areas (D26 fork 6). */
-const SEED_DESCRIPTIONS: Record<string, string> = {
-  health: "Body and mind — fitness, food, sleep, energy.",
-  finance: "Money in, money out — saving, spending, growing it.",
-  learning: "Skills and knowledge you're actively building.",
-  spirituality: "Inner practice — meditation, reflection, meaning.",
-  youtube: "The channel — videos, growth, the creator craft.",
-  business: "Ventures and work that earn — products, clients, projects.",
-};
-
 function toArea(doc: VaultDoc<AreaFrontmatter>): Area {
   const fm = doc.frontmatter;
   const slug = wikiTarget(fm.area ?? "") || doc.path.split("/")[1] || "";
-  const identity = areaOption(slug);
   const parent = fm.parent ? wikiTarget(fm.parent) : undefined;
+  const order = fm.order ?? 999;
+  const palette = paletteForOrder(order);
   return {
     slug,
-    name: fm.name ?? identity?.label ?? slug,
+    name: fm.name ?? slug,
     description: fm.description ?? "",
-    color: identity?.color ?? null,
+    color: fm.color ?? palette.color,
+    icon: iconByName(fm.icon) ?? palette.icon,
     archived: fm.archived ?? false,
     parent,
-    order: fm.order ?? 999,
+    order,
     path: doc.path,
-    fixed: !!identity && !parent,
     body: doc.body,
   };
-}
-
-/**
- * Lazily seed any missing top-level area `_index.md` files. Idempotent — only
- * writes the ones that don't yet exist, so existing (and user-edited) files are
- * never clobbered.
- */
-export async function ensureAreasSeeded(): Promise<void> {
-  const { entries } = await listDir("areas");
-  const present = new Set(entries.filter((e) => e.type === "dir").map((e) => e.path.split("/")[1]));
-  await Promise.all(
-    AREA_OPTIONS.filter((a) => !present.has(a.slug)).map((a) =>
-      writeDoc(
-        areaIndexPath(a.slug),
-        {
-          type: "area",
-          area: toWikilink(a.slug),
-          name: a.label,
-          description: SEED_DESCRIPTIONS[a.slug] ?? "",
-          order: AREA_OPTIONS.findIndex((o) => o.slug === a.slug) + 1,
-          archived: false,
-        },
-        "",
-      ),
-    ),
-  );
 }
 
 /** Read one area's `_index.md`, or null if it doesn't exist. */
@@ -102,9 +68,8 @@ export async function readArea(slug: string): Promise<Area | null> {
   }
 }
 
-/** All areas (seeded first), sorted by order. Includes sub-areas. */
+/** All areas, sorted by order. Includes sub-areas. Empty vault → empty array. */
 export async function listAreas(): Promise<Area[]> {
-  await ensureAreasSeeded();
   const { entries } = await listDir("areas");
   const dirs = entries.filter((e) => e.type === "dir");
   const docs = await Promise.all(dirs.map((e) => readDoc(`${e.path}/_index.md`).catch(() => null)));
@@ -114,10 +79,58 @@ export async function listAreas(): Promise<Area[]> {
     .sort((a, b) => a.order - b.order);
 }
 
-/** Direct sub-areas of an area (display-only for now — creation is deferred). */
+/** Direct sub-areas of an area. */
 export async function listSubAreas(parentSlug: string): Promise<Area[]> {
   const all = await listAreas();
   return all.filter((a) => a.parent === parentSlug);
+}
+
+/** Build a unique slug from a name against the currently-taken area slugs. */
+async function uniqueAreaSlug(name: string): Promise<string> {
+  const { entries } = await listDir("areas");
+  const takenSlugs = new Set(
+    entries.filter((e) => e.type === "dir").map((e) => e.path.split("/")[1] ?? ""),
+  );
+  const base = slugify(name) || "area";
+  let slug = base;
+  let n = 2;
+  while (takenSlugs.has(slug)) {
+    slug = `${base}-${n}`;
+    n += 1;
+  }
+  return slug;
+}
+
+export interface CreateAreaInput {
+  name: string;
+  description?: string;
+}
+
+/**
+ * Create a new top-level area. Assigns the next `order` (after the current
+ * max top-level order) and resolves its color/icon from the palette at that
+ * order, persisting both into frontmatter so the identity is stable even if
+ * later areas are reordered or archived.
+ */
+export async function createArea(input: CreateAreaInput): Promise<Area> {
+  const slug = await uniqueAreaSlug(input.name);
+  const topLevel = (await listAreas()).filter((a) => !a.parent);
+  const order = topLevel.length > 0 ? Math.max(...topLevel.map((a) => a.order)) + 1 : 1;
+  const palette = paletteForOrder(order);
+
+  const frontmatter: Record<string, unknown> = {
+    type: "area",
+    area: toWikilink(slug),
+    name: input.name,
+    order,
+    archived: false,
+    color: palette.color,
+    icon: palette.iconName,
+  };
+  if (input.description) frontmatter.description = input.description;
+
+  const res = await vaultWriteDoc(areaIndexPath(slug), frontmatter, "");
+  return toArea({ path: res.path, frontmatter: res.frontmatter as AreaFrontmatter, body: "" });
 }
 
 export interface CreateSubAreaInput {
@@ -128,6 +141,7 @@ export interface CreateSubAreaInput {
 /**
  * Create a sub-area under `parentSlug`. Writes `areas/<slug>/_index.md` with
  * `type: area`, `parent: [[parentSlug]]`, unique slug, and next order value.
+ * Sub-areas inherit their parent's color/icon (no independent identity).
  *
  * 2-level max rule: throws if the chosen parent itself already has a `parent`.
  */
@@ -141,18 +155,7 @@ export async function createSubArea(parentSlug: string, input: CreateSubAreaInpu
     );
   }
 
-  // Build a unique slug from the name
-  const { entries } = await listDir("areas");
-  const takenSlugs = new Set(
-    entries.filter((e) => e.type === "dir").map((e) => e.path.split("/")[1] ?? ""),
-  );
-  const base = slugify(input.name) || "sub-area";
-  let slug = base;
-  let n = 2;
-  while (takenSlugs.has(slug)) {
-    slug = `${base}-${n}`;
-    n += 1;
-  }
+  const slug = await uniqueAreaSlug(input.name);
 
   // Determine next order value among existing sub-areas of this parent
   const existingSubs = await listSubAreas(parentSlug);
@@ -168,23 +171,34 @@ export async function createSubArea(parentSlug: string, input: CreateSubAreaInpu
   };
   if (input.description) frontmatter.description = input.description;
 
-  const res = await writeDoc(areaIndexPath(slug), frontmatter, "");
+  const res = await vaultWriteDoc(areaIndexPath(slug), frontmatter, "");
   return toArea({ path: res.path, frontmatter: res.frontmatter as AreaFrontmatter, body: "" });
 }
 
-/** Patch an area's editable frontmatter (description, archived, …). */
+/** Patch an area's editable frontmatter (name, description, archived, …). */
 export async function updateArea(area: Area, patch: Partial<AreaFrontmatter>): Promise<Area> {
   const doc = (await readDoc(area.path)) as VaultDoc<AreaFrontmatter>;
   const frontmatter = { ...doc.frontmatter, ...patch };
   for (const key of Object.keys(patch) as (keyof AreaFrontmatter)[]) {
     if (patch[key] === undefined) delete frontmatter[key];
   }
-  const res = await writeDoc(area.path, frontmatter, doc.body);
+  const res = await vaultWriteDoc(area.path, frontmatter, doc.body);
   return toArea({
     path: area.path,
     frontmatter: res.frontmatter as AreaFrontmatter,
     body: doc.body,
   });
+}
+
+/** Rename an area (its display name — the slug/path never change). */
+export async function renameArea(area: Area, name: string): Promise<Area> {
+  return updateArea(area, { name });
+}
+
+/** Archive or unarchive an area. Top-level areas are archivable like any
+ * other now that they're user-created (no more "fixed, permanent" anchors). */
+export async function setAreaArchived(area: Area, archived: boolean): Promise<Area> {
+  return updateArea(area, { archived });
 }
 
 /** Save an inline-edited one-line description. */
@@ -196,6 +210,6 @@ export async function setAreaDescription(area: Area, description: string): Promi
 export async function setAreaBody(area: Area, body: string): Promise<Area> {
   const doc = (await readDoc(area.path)) as VaultDoc<AreaFrontmatter>;
   const frontmatter: Record<string, unknown> = { ...doc.frontmatter };
-  const res = await writeDoc(area.path, frontmatter, body);
+  const res = await vaultWriteDoc(area.path, frontmatter, body);
   return toArea({ path: area.path, frontmatter: res.frontmatter as AreaFrontmatter, body });
 }
