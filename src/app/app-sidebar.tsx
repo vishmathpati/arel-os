@@ -98,9 +98,11 @@ export function AppSidebar() {
               <DropdownMenuTrigger asChild>
                 <SidebarMenuButton size="lg" tooltip="Settings">
                   <Avatar className="size-7 rounded-md">
-                    <AvatarFallback className="rounded-md text-caption">V</AvatarFallback>
+                    <AvatarFallback className="rounded-md text-caption">
+                      {displayName.charAt(0).toUpperCase()}
+                    </AvatarFallback>
                   </Avatar>
-                  <span className="flex-1 truncate text-left">Vish</span>
+                  <span className="flex-1 truncate text-left">{displayName}</span>
                   <Settings className="text-muted-foreground" />
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
